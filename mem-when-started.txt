@@ -1,0 +1,11 @@
+havasi   10599 76.5 14.3 424812 277480 pts/10  Rl+  23:22  24:03 python ./backend/fish.py
+havasi   10668  2.5 15.7 435588 304496 pts/8   Sl+  23:22   0:47 python twittersuck/spritzer/otherbankstream.py
+havasi   10777  0.8 15.7 434168 303204 pts/6   Rl+  23:23   0:15 python twittersuck/spritzer/bankstream.py
+havasi   10778 28.0 13.3 389360 258400 pts/4   Rl+  23:23   8:40 python twittersuck/spritzer/stream.py
+havasi   10793 27.6 13.4 399812 260644 pts/12  Sl+  23:23   8:33 python twittersuck/spritzer/custom_streams.py
+havasi   12281 13.7  1.8 160188 35412 pts/5    Sl+  23:27   3:42 python ./backend/som.py
+havasi   12439 19.5  1.4 152992 28228 pts/11   Rl+  23:27   5:11 python backend/somfish.py
+havasi   12498 15.3  1.7 159116 34284 pts/13   Rl+  23:27   4:02 python backend/som_tech.py
+havasi   13173  0.9  1.3 150756 25980 pts/9    Sl+  23:29   0:13 python backend/som_other_bank.py
+havasi   16012  0.1  1.3 149988 25188 pts/7    Sl+  23:36   0:01 python backend/som_bank.py
+kcarnold 22530  0.0  0.0   7340   896 pts/15   S+   23:54   0:00 grep --color=auto python

@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <script src="json2.js"></script>
+  <script src="unpack64.js"></script>
+  <script src="/.comsat/static/Orbited.js"></script>
+<link rel="stylesheet" href="twittermap.css"/></head>
+<body>
+
+<script>
+  TCPSocket = Orbited.TCPSocket;
+  instream = "/topic/SocNOC/som_bank";
+</script>
+<script src="/.comsat/static/protocols/stomp/stomp.js"></script>
+<script src="/.comsat/static/demos/stomp/shell.js"></script>
+<div style="text-align: center; font-size: 72pt; font-family: Georgia, Palatino, Times; color: #ecc; z-index: -2;">
+TwitterMap
+</div>
+<div style="text-align: center; font-size: 56pt; font-family: Georgia, Palatino, Times; color: #ccd; z-index: -2;">
+what people are talking about now
+</div>
+<div id="themap"/>
+<div id="output" style="display: none;" />
+<script src="twittermap.js"></script>
+</body>
+</html>
+
+<!-- vim:tw=0:ts=2:sts=2:sw=2:et
+ -->
