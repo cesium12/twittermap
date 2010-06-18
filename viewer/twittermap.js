@@ -28,7 +28,7 @@ onload = function() {
     if (frame.body.toString().substring(1, 8) === "MESSAGE") {
       return;
     }
-    info = JSON.parse(frame.body.toString());
+    info = JSON.parse(frame.body.toString()).data.vector; // vectornet unprocessing
     viewer.handleMessage(info);
   };
   stomp.connect('localhost', 61613, 'legacy', 'pohgh7Ohf9aeshum');

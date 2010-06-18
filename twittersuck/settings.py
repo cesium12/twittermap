@@ -9,12 +9,9 @@ ADMINS = (
 
 MANAGERS = ADMINS
 
-DATABASE_ENGINE = 'postgresql_psycopg2'           # 'postgresql_psycopg2', 'postgresql', 'mysql', 'sqlite3' or 'oracle'.
-DATABASE_NAME = 'socnoc'             # Or path to database file if using sqlite3.
-DATABASE_USER = 'openmind'             # Not used with sqlite3.
-DATABASE_PASSWORD = 'uataimec'         # Not used with sqlite3.
-DATABASE_HOST = 'localhost'             # Set to empty string for localhost. Not used with sqlite3.
-DATABASE_PORT = '5432'             # Set to empty string for default. Not used with sqlite3.
+import sys, os.path
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), os.path.pardir)) # secrets are one dir up
+from secrets import DATABASE_ENGINE, DATABASE_NAME, DATABASE_USER, DATABASE_PASSWORD, DATABASE_HOST, DATABASE_PORT
 
 # Local time zone for this installation. Choices can be found here:
 # http://en.wikipedia.org/wiki/List_of_tz_zones_by_name
@@ -81,7 +78,8 @@ INSTALLED_APPS = (
 
 # STOMP configuration
 STOMP_HOSTS = (
-        ('stompcore.local',61613),
+        #('stompcore.local',61613),
+        ('localhost', 61613),
         )
 STOMP_USERNAME = 'legacy'
 STOMP_PASSWORD = 'pohgh7Ohf9aeshum'

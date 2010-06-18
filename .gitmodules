@@ -1,0 +1,3 @@
+[submodule "vectornet"]
+	path = vectornet
+	url = git@git.media.mit.edu:vectornet
