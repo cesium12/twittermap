@@ -3,17 +3,14 @@ from csc.divisi.labeled_view import make_sparse_labeled_tensor
 from twittersuck.spritzer.models import Tweet, strip_tags
 from csc.divisi.util import get_picklecached_thing
 from csc.conceptnet4.analogyspace import conceptnet_2d_from_db
-from itertools import cycle, count
+from itertools import cycle
 from standalone_nlp.lang_en import en_nl
 from django.conf import settings
 import numpy, re, feedparser, nltk
 import basic_stomp as stomp
-import csc.divisi as divisi
 from html2text import html2text
 import simplejson as json
 from csc.util.vector import pack64
-from csc.divisi.tensor import data
-from badwords import  is_bad_word
 
 sent_tokenizer = nltk.data.load('tokenizers/punkt/english.pickle')
 cnet = get_picklecached_thing('cnet.pickle.gz', lambda: conceptnet_2d_from_db('en', cutoff=10))
@@ -141,20 +138,18 @@ def make_twit_vec(text, extras = None):
     return twitvec
 
 def twit_gen():
-    while True:
-        nextTweet = tweeterator.next()
+    for nextTweet in tweeterator:
         thetext = '@' + nextTweet.user.username + ' ' + nextTweet.text
         twitvec = make_twit_vec(nextTweet.text)
         yield (thetext, twitvec)
 
 def weave_streams(streams):
-    for i in count():
-        gotSomething = False
-        for stream in streams:
-            if len(stream) > i:
-                yield stream[i]
-                gotSomething = True
-        if not gotSomething: raise StopIteration
+    '''Repeatedly gets one element from each stream in order until all are exhausted.
+    weave_streams([(1,2,3,4), 'ab']) => 1, 'a', 2, 'b', 3, 4'''
+    for step in map(None, *streams):
+        for item in step:
+            if item is not None:
+                yield item
         
 def get_feed_items(feeds):
     for (x, y) in feeds:
@@ -180,7 +175,7 @@ class SocNOC(object):
         self.spicefreq = spicefreq
         self.iteration = 0
         self.transfreq = trans
-        self.categories = []
+        self.categories = {}
         self.SocNoc.start()
         self.SocNoc.connect()
 
@@ -283,7 +278,7 @@ class SocNOC(object):
                 if assertion is None: continue
             self.ccipca_iter(assertion, thetext)
 
-    def recieveTweet(self, tweetdict):
+    def receiveTweet(self, tweetdict):
         if self.iteration % self.spicefreq == 0:
             thetext, assertion = self.spice.next()
             self.ccipca_iter(assertion, thetext)

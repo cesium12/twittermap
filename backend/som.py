@@ -16,6 +16,7 @@ log = logging.getLogger('backend.som')
 
 import numpy as np
 
+import itertools
 def cartesian(arrays, out=None):
     """
     Generate a cartesian product of input arrays.
@@ -50,21 +51,7 @@ def cartesian(arrays, out=None):
            [3, 5, 7]])
 
     """
-
-    arrays = [np.asarray(x) for x in arrays]
-    dtype = arrays[0].dtype
-
-    n = np.prod([x.size for x in arrays])
-    if out is None:
-        out = np.zeros([n, len(arrays)], dtype=dtype)
-
-    m = n / arrays[0].size
-    out[:,0] = np.repeat(arrays[0], m)
-    if arrays[1:]:
-        cartesian(arrays[1:], out=out[0:m,1:])
-        for j in xrange(1, arrays[0].size):
-            out[j*m:(j+1)*m,1:] = out[0:m,1:]
-    return out
+    return np.asarray(list(itertools.product(*arrays)))
 
 class SOMBuilder(object):
     def __init__(self, map_size=(100, 100), k=19, in_channel='/topic/SocNOC/twitter', out_channel='/topic/SocNOC/som'):
@@ -134,7 +121,10 @@ class SOMBuilder(object):
     def handle_data(self, message):
         vec = unpack64(message['coordinates'])[1:]
         text = message['text']
-        product = vec * self.magnitudes
+        try:
+            product = vec * self.magnitudes
+        except ValueError:
+            return
         self.handle_vector(product, text)
 
     def handle_vector(self, vec, text):
@@ -145,8 +135,8 @@ class SOMBuilder(object):
         mag = np.sqrt(np.sum(vec * vec))
         vec = vec / np.linalg.norm(vec)
         if str(vec[0]).lower() == 'nan':
-            log.warning("got zero vector for: " + str(text))
-            log.warning(str(list(vec)))
+            log.warning("got zero vector for: %s" % text)
+            log.warning("%s" % list(vec))
             return
         similarity = np.dot(self.som_array, vec)
         old_loc = self.lookup.get(text)

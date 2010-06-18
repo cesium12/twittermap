@@ -29,7 +29,7 @@ class Stream(object):
         Tweet.from_json(json)
         text = json['text']
         if self.regex.search(text.lower()):
-          self.theSnoc.recieveTweet(json)
+          self.theSnoc.receiveTweet(json)
         
     def on_delete(self, json):
         Tweet.handle_delete(json)
@@ -42,7 +42,7 @@ class Stream(object):
                 self.on_tweet(tweet)
 
 
-#spritzer = Stream('r_speer', TWITTER_PASSWORD, url='spritzer')
+#spritzer = Stream('r_speer', TWITTER_PASSWORD, url=settings.TWITTER_FEED)
 
 if __name__ == '__main__':
     import sys

@@ -1,4 +1,5 @@
-file = open('/csc/code/twittermap/backend/badwords.txt', 'r')
+import os.path
+file = open(os.path.join(os.path.dirname(__file__), 'badwords.txt'), 'r')
 badwords = [x.replace('\n', "") for x in file.readlines()]
 file.close()
 

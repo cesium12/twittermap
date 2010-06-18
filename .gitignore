@@ -1,3 +1,5 @@
 .bzr*
 *.pyc
 db_password.py
+*log
+secrets.py

@@ -85,3 +85,5 @@ STOMP_HOSTS = (
         )
 STOMP_USERNAME = 'legacy'
 STOMP_PASSWORD = 'pohgh7Ohf9aeshum'
+
+TWITTER_FEED = 'sample' # 'spritzer' no longer works (http://apiwiki.twitter.com/Streaming-API-Documentation)

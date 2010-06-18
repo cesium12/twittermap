@@ -14,9 +14,9 @@ class Stream(object):
     def on_tweet(self, json):
         Tweet.from_json(json)
 #        if self.filter:
-#            if json['text'].find(self.filter) > -1: self.theSnoc.recieveTweet(json)
+#            if json['text'].find(self.filter) > -1: self.theSnoc.receiveTweet(json)
 #        else:
-        self.theSnoc.recieveTweet(json)
+        self.theSnoc.receiveTweet(json)
         
     def on_delete(self, json):
         Tweet.handle_delete(json)
@@ -29,7 +29,7 @@ class Stream(object):
                 self.on_tweet(tweet)
 
 
-spritzer = Stream('r_speer', TWITTER_PASSWORD, url='spritzer')
+spritzer = Stream('r_speer', TWITTER_PASSWORD, url=settings.TWITTER_FEED)
 
 if __name__ == '__main__':
     import sys

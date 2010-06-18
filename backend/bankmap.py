@@ -30,7 +30,7 @@ class specificNOC(SocNOC):
     def set_filter(self, filters):
         self.filters = filters
     
-    def recieveTweet(self, tweetdict):
+    def receiveTweet(self, tweetdict):
         user = '@' + tweetdict['user']['screen_name']
         text = user + ' ' + strip_tags(tweetdict['text'])
         if self.filters:
