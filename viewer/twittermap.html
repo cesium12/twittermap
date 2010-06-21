@@ -9,7 +9,9 @@
 
 <script>
   TCPSocket = Orbited.TCPSocket;
-  instream = "/topic/process";
+  channel = window.location.search.substring(1);
+  if(!channel) channel = "som";
+  instream = "/topic/" + channel;
 </script>
 <script src="/.comsat/static/protocols/stomp/stomp.js"></script>
 <script src="/.comsat/static/demos/stomp/shell.js"></script>

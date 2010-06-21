@@ -92,7 +92,7 @@ class SOMBuilder(object):
         
         while True:
             msg = self.stomp.get()
-            self.on_message(msg.body)
+            self.on_message(json.loads(msg.body))
             
     def initialize_som(self):
         width, height = self.map_size
@@ -103,8 +103,7 @@ class SOMBuilder(object):
         #        self.som_array[x, y, 1] = 2.0*y / height - 1
         #        self.som_array[x, y, 2] = 1
 
-    def on_message(self, body):
-        message = json.loads(body)
+    def on_message(self, message):
         if 'text' not in message:
             # metadata. skip it for now.
             return
@@ -246,8 +245,8 @@ class SOMBuilder(object):
                 user = User.objects.get(username=text[1:])
                 img = user.profile_image_url
                 assert size[0] == size[1]
-            except (User.DoesNotExist, User.MultipleObjectsReturned):
-                return
+            except StandardError:
+                pass
         message = {
             'text': text,
             'x': int(location[0]),

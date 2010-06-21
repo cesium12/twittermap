@@ -5,15 +5,20 @@ print mec.get_ids()
 
 graph = {
     'piffelia': {
-        'tags': ['random_vec'],
+        'tags': ['twittermap'],
         'localNodes': [ # may be a race condition if these are in the wrong order
             {
+                'name': 'som',
+                'consumesFrom': ['process'],
+                'classType': 'twitternet.TwitterSom'
+            },
+            {
                 'name': 'process',
-                'consumesFrom': ['twitter'],
+                'consumesFrom': ['stream'],
                 'classType': 'twitternet.TwitterProcess'
             },
             {
-                'name': 'twitter',
+                'name': 'stream',
                 'consumesFrom': None,
                 'classType': 'twitternet.TwitterStream'
             }

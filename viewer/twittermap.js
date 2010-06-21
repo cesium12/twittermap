@@ -29,7 +29,8 @@ onload = function() {
       return;
     }
     info = JSON.parse(frame.body.toString()).data.vector; // vectornet unprocessing
-    viewer.handleMessage(info);
+    if(info != null)
+      viewer.handleMessage(info);
   };
   stomp.connect('localhost', 61613, 'legacy', 'pohgh7Ohf9aeshum');
 };
