@@ -1,4 +1,4 @@
-import numpy as np
+from backend.som import SOMBuilder
 
 class RedFishBlueFishSOM(SOMBuilder):
     def handle_vector(self, vec, text):
@@ -9,7 +9,7 @@ class RedFishBlueFishSOM(SOMBuilder):
         SOMBuilder.handle_vector(self, vec, text)
     
 def main():
-    mapper = RFBFMap(k=9, in_channel='/topic/SocNOC/redfishbluefish',
+    mapper = RedFishBlueFishSOM(k=9, in_channel='/topic/SocNOC/redfishbluefish',
                      out_channel='/topic/SocNOC/rfbfmap')
     mapper.start()
 

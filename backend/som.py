@@ -1,9 +1,7 @@
 from django.conf import settings
-import numpy as np
 import simplejson as json
-from twittersuck.spritzer.models import *
+from twittersuck.spritzer.models import User
 from csc.util.vector import pack64, unpack64
-import sys
 from stompy.simple import Client
 import basic_stomp
 import logging

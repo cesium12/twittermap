@@ -1,20 +1,8 @@
-from snoc_backend import *
-from csc.divisi.forgetful_ccipca import CCIPCA
-from csc.divisi.labeled_view import make_sparse_labeled_tensor
-from twittersuck.spritzer.models import Tweet, strip_tags
+from snoc_backend import SocNOC, make_twit_vec
+from twittersuck.spritzer.models import strip_tags
 from csc.divisi.util import get_picklecached_thing
 from csc.conceptnet4.analogyspace import conceptnet_2d_from_db
-from itertools import cycle, count
-from standalone_nlp.lang_en import en_nl
-from django.conf import settings
-import numpy, re, feedparser, nltk
-import basic_stomp as stomp
-import csc.divisi as divisi
-from html2text import html2text
-import simplejson as json
-from csc.util.vector import pack64
-from csc.divisi.tensor import data
-from badwords import  is_bad_word
+import nltk
 
 sent_tokenizer = nltk.data.load('tokenizers/punkt/english.pickle')
 cnet = get_picklecached_thing('cnet.pickle.gz', lambda: conceptnet_2d_from_db('en', cutoff=10))

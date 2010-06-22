@@ -1,5 +1,4 @@
-import numpy as np
-from backend.som import SOMBuilder, log
+from backend.som import SOMBuilder
 
 def main():
     som = SOMBuilder(k=19, map_size=(100, 80), in_channel='/topic/SocNOC/gillette', out_channel='/topic/SocNOC/som_gillette')

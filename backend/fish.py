@@ -1,5 +1,3 @@
-from html2text import html2text
-
 from snoc_backend import SocNOC, weave_streams
 from affect_values import affect
 

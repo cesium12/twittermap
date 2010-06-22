@@ -1,3 +1,6 @@
 [submodule "vectornet"]
 	path = vectornet
 	url = git@git.media.mit.edu:vectornet
+[submodule "twitty-twister"]
+	path = twitty-twister
+	url = git://github.com/dustin/twitty-twister.git
