@@ -4,3 +4,6 @@
 [submodule "twitty-twister"]
 	path = twitty-twister
 	url = git://github.com/dustin/twitty-twister.git
+[submodule "twisted-twitter-stream"]
+	path = twisted-twitter-stream
+	url = http://github.com/fiorix/twisted-twitter-stream.git

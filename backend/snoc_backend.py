@@ -340,7 +340,7 @@ class SocNOC(object):
             transdict= {'coordinates': pack64(reconstructed), 'magnitudes':
             pack64(list(norms)), 'text': thetext, 'concepts': conceptsdict,
             'categories': categorydict}
-            print transdict
+            #print transdict
             self.send(transdict)
     
 if __name__ == '__main__':
