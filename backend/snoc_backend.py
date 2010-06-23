@@ -3,7 +3,7 @@ from csc.divisi.labeled_view import make_sparse_labeled_tensor
 from twittersuck.spritzer.models import Tweet, strip_tags
 from csc.divisi.util import get_picklecached_thing
 from csc.conceptnet4.analogyspace import conceptnet_2d_from_db
-from itertools import cycle
+import itertools
 from standalone_nlp.lang_en import en_nl
 from django.conf import settings
 import numpy, re, feedparser, nltk
@@ -54,13 +54,13 @@ def affect_pregen():
         yield feature,affectivewn[:, feature]
 
 def affect_cycler():
-    for thing in cycle(affect_pregen()):
+    for thing in itertools.cycle(affect_pregen()):
         yield thing
 
 def spice_generator():
     affect = affect_cycler()
     gens = [affect]
-    generator_generator = cycle(gens)
+    generator_generator = itertools.cycle(gens)
     while True:
         yield generator_generator.next().next()
 
@@ -70,7 +70,7 @@ def cnet_generator():
         yield feature,cnet[:, feature]
 
 def cnet_cycler():
-    for thing in cycle(cnet_generator()):
+    for thing in itertools.cycle(cnet_generator()):
         yield thing
 
 def process_word(word):
@@ -78,14 +78,14 @@ def process_word(word):
     return word
         
 def cleanTwitterPhrase(phrase):
-    notEnglish = False
+    #notEnglish = False
     sore = ''
     are = ''
     newphrase = []
     for char in phrase:
         if sore != are or sore != char: 
             if ord(char) >= 128:
-                notEnglish = True
+                #notEnglish = True
                 newphrase.append(' ')
             else:
                 newphrase.append(char)
@@ -150,7 +150,11 @@ def weave_streams(streams):
         for item in step:
             if item is not None:
                 yield item
-        
+
+def make_tuples(iter1, value2=None):
+        # Given [ foo, bar ] and baz, returns [ ( foo, baz), (bar, baz) ]
+        return itertools.izip_longest(iter1, [], fillvalue=value2)
+
 def get_feed_items(feeds):
     for (x, y) in feeds:
         try:
@@ -178,94 +182,64 @@ class SocNOC(object):
         self.categories = {}
         self.SocNoc.start()
         self.SocNoc.connect()
-
+    
     def sendIdentifier(self, stream):
         stream = stream[0]
         title = stream['title']
         link = stream['link']
         transdict = {'title': title, 'link': link}
         self.send(transdict)
-
+    
+    def _process_post(self, post, word=None):
+        sents = sent_tokenizer.tokenize(post)
+        sentcount = 0
+        while sentcount < len(sents):
+            if self.cnetfreq and self.iteration % self.cnetfreq == 0:
+                thetext, assertion = self.cstream.next()
+            elif self.spicefreq and self.iteration % self.spicefreq == 0:
+                thetext, assertion = self.spice.next()
+            else:
+                thetext = sents[sentcount]
+                sentcount += 1
+                if thetext == '':
+                    continue
+                assertion = make_twit_vec(thetext, extras=word)
+                if assertion is None:
+                    continue
+                thetext += ' // ' + word
+            self.ccipca_iter(assertion, thetext)
+    
     def process_labeled_posts(self, posts):
         # Takes a list of posts
-        runningcount = 0
-        for post, word in posts:
-            sents = sent_tokenizer.tokenize(post)
-            sentcount = 0
-            while sentcount < len(sents):
-                if self.cnetfreq and (self.iteration % self.cnetfreq) == 0:
-                    thetext, assertion = self.cstream.next()
-                elif self.spicefreq and (self.iteration % self.spicefreq == 0):
-                    thetext, assertion = self.spice.next()
-                else:
-                    thetext = sents[sentcount]
-                    sentcount += 1
-                    if thetext == '': continue
-                    assertion = make_twit_vec(thetext, extras= word)
-                    if assertion is None: continue
-                    thetext +=  ' // '+ word
-                    
-                self.ccipca_iter(assertion, thetext)
-
+        for p in posts:
+            self._process_post(*p)
+    
+    def _process_feed_item(self, current, word=None):
+        self.sendIdentifier((current, word))
+        if current.has_key('content'):
+            text = current.content
+        else:
+            text = current.summary
+        if isinstance(text, list):
+            text = text[0]
+        if isinstance(text, dict):
+            text = text['value']
+        post = html2text(text).strip()
+        self._process_post(post, word)
+    
+    def _process_feed_list(self, feeds):
+        return weave_streams(make_tuples(feedparser.parse(x)['items'], y) for (x, y) in feeds)
+    
     def process_labeled_RSS_feed(self, feeds):
         # Takes a list of Feeds
-        runningcount = 0
-        streams = list(weave_streams([[(q,y) for q in feedparser.parse(x)['items']] for (x,y) in feeds])) 
-        #list(weave_streams(get_feed_items(feeds)))
-        # 
-        for current in streams:
-            self.sendIdentifier(current)
-            word = current[1]
-            current = current[0]
-            if current.has_key('content'): text = current.content
-            else: text = current.summary
-            if isinstance(text, list): text = text[0]
-            if isinstance(text, dict): text = text['value']
-            post = html2text(text).strip()
-                
-            sents = sent_tokenizer.tokenize(post)
-            sentcount = 0
-            while sentcount < len(sents):
-                if self.cnetfreq and self.iteration % self.cnetfreq == 0:
-                    thetext, assertion = self.cstream.next()
-                elif self.spicefreq and self.iteration % self.spicefreq == 0:
-                    thetext, assertion = self.spice.next()
-                else:
-                    thetext = sents[sentcount]
-                    sentcount += 1
-                    if thetext == '': continue
-                    assertion = make_twit_vec(thetext, extras= word)
-                    if assertion is None: continue
-                    thetext +=  ' // '+ word
-                    
-                self.ccipca_iter(assertion, thetext)
-
+        for current, word in self._process_feed_list(feeds):
+            self._process_feed_item(current, word)
+    
     def process_RSS_feed(self, feeds):
         # Takes a list of Feeds
-        runningcount = 0
-        streams = list(weave_streams([feedparser.parse(x)['items'] for x in feeds]))
-        for current in streams:
-            if current.has_key('content'): text = current.content
-            else: text = current.summary
-            self.sendIdentifier(current)
-            if isinstance(text, list): text = text[0]
-            if isinstance(text, dict): text = text['value']
-            post = html2text(text).strip()
-            sents = sent_tokenizer.tokenize(post)
-            sentcount = 0
-            while sentcount < len(sents):
-                if self.iteration % self.cnetfreq == 0:
-                    thetext, assertion = self.cstream.next()
-                elif self.iteration % self.spicefreq == 0:
-                    thetext, assertion = self.spice.next()
-                else:
-                    thetext = sents[sentcount]
-                    sentcount += 1
-                    if thetext == '': continue
-                    assertion = make_twit_vec(thetext)
-                    if assertion is None: continue
-                self.ccipca_iter(assertion, thetext)                
-        
+        for current, none in self._process_feed_list(make_tuples(feeds)):
+            self._process_feed_item(current)
+    
     def fromTwitterDB(self, n=None):
         twitter = twit_gen()
         while (n is None or self.iteration < n):
@@ -277,7 +251,7 @@ class SocNOC(object):
                 thetext, assertion = twitter.next()
                 if assertion is None: continue
             self.ccipca_iter(assertion, thetext)
-
+    
     def receiveTweet(self, tweetdict):
         if self.iteration % self.spicefreq == 0:
             thetext, assertion = self.spice.next()
@@ -290,7 +264,7 @@ class SocNOC(object):
         assertion = make_twit_vec(text)
         if assertion == None: return
         self.ccipca_iter(assertion, text)
-        
+    
     @staticmethod
     def VectortoDict(tensor):
         first = dict(tensor)
@@ -302,14 +276,14 @@ class SocNOC(object):
     def send(self,data):    
         msg = json.dumps(data)
         self.SocNoc.send(msg, destination=self.channel)
-
+    
     def get_concept_position(self,concept):
         try:
             loc = self.ccipca._labels.index(concept, touch=False)
             return self.ccipca._v[:,loc]  
         except IndexError:
             return None
-        
+    
     def ccipca_iter(self, assertion, thetext):
         reconstructed = self.ccipca.iteration(assertion, True)
         thetext = unicode(thetext)
@@ -325,7 +299,7 @@ class SocNOC(object):
 #            loc = self.get_concept_position(word)
 #            if loc is not None:
 #                conceptsdict[concept] = pack64(loc)
-            
+        
         if self.iteration % self.transfreq == 0:
             categorydict = {}
             for catname, category in self.categories.items():
@@ -336,15 +310,14 @@ class SocNOC(object):
                         catvec[idx] = value
                 categorydict[catname] = pack64(numpy.dot(catvec,
                 self.ccipca._v.T)*norms*norms)
-
+            
             transdict= {'coordinates': pack64(reconstructed), 'magnitudes':
             pack64(list(norms)), 'text': thetext, 'concepts': conceptsdict,
             'categories': categorydict}
             #print transdict
             self.send(transdict)
-    
+
 if __name__ == '__main__':
     channel = "/topic/SocNOC/twitter"
     snoc = SocNOC(channel)
     snoc.fromTwitterDB()
-

@@ -10,7 +10,7 @@ onload = function() {
   stomp = new STOMPClient();
   stomp.onopen = function() {
     display("Transport opened");
-    stomp.subscribe("/topic/SocNOC/redfishbluefish");
+    stomp.subscribe(instream);
   };
   stomp.onclose = function(code) {
     display("Transport closed (code: " + code + ")");
@@ -22,14 +22,15 @@ onload = function() {
     alert("onerrorframe: " + frame.body);
   };
   stomp.onconnectedframe = function() {
-    display("");
+    display("Connected.");
   };
   stomp.onmessageframe = function(frame) {
     if (frame.body.toString().substring(1, 8) === "MESSAGE") {
       return;
     }
-    info = JSON.parse(frame.body.toString());
-    viewer.handleMessage(info);
+    info = JSON.parse(frame.body.toString()).data.vector; // vectornet unprocessing
+    if(info != null)
+      viewer.handleMessage(info);
   };
   stomp.connect('localhost', 61613, 'legacy', 'pohgh7Ohf9aeshum');
 };

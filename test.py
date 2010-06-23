@@ -12,35 +12,51 @@ specific = {
 }
 localNodes = [ # may be a race condition if these are in the wrong order
     {
-        'name': 'som',
-        'consumesFrom': ['process'],
-        'classType': 'twitternet.TwitterSom'
+        'name' : 'som',
+        'consumesFrom' : ['process'],
+        'classType' : 'twitternet.TwitterSom'
     },
     {
-        'name': 'process',
-        'consumesFrom': ['stream'],
-        'classType': 'twitternet.TwitterProcess'
+        'name' : 'process',
+        'consumesFrom' : ['stream'],
+        'classType' : 'twitternet.TwitterProcess'
     }
 ]
 try:
     name = sys.argv[1]
-    terms = specific[name]
-    localNodes.append({
-        'name': 'stream',
-        'consumesFrom': None,
-        'classType': 'twitternet.TwitterSpecificStream',
-        'wl': terms
-    })
+    if name == 'rfbf':
+        localNodes = [
+            {
+                'name' : 'somfish',
+                'consumesFrom' : ['fish'],
+                'classType' : 'twitternet.RfbfSom'
+            },
+            {
+                'name' : 'fish',
+                'consumesFrom' : None,
+                'classType' : 'twitternet.RfbfStream',
+                'rfile' : 'backend/repubs.txt',
+                'dfile' : 'backend/dems.txt'
+            }
+        ]
+    else:
+        terms = specific[name]
+        localNodes.append({
+            'name' : 'stream',
+            'consumesFrom' : None,
+            'classType' : 'twitternet.TwitterSpecificStream',
+            'wl' : terms
+        })
 except LookupError:
     localNodes.append({
-        'name': 'stream',
-        'consumesFrom': None,
-        'classType': 'twitternet.TwitterStream'
+        'name' : 'stream',
+        'consumesFrom' : None,
+        'classType' : 'twitternet.TwitterStream'
     })
 graph = {
-    'piffelia': {
-        'tags': ['twittermap'],
-        'localNodes': localNodes
+    'piffelia' : {
+        'tags' : ['twittermap'],
+        'localNodes' : localNodes
     }
 }
 mec.push({'g' : graph})

@@ -10,6 +10,9 @@
 
 <script>
   TCPSocket = Orbited.TCPSocket;
+  channel = window.location.search.substring(1);
+  if(!channel) channel = "fish";
+  instream = "/topic/" + channel;
 </script>
 <script src="/.comsat/static/protocols/stomp/stomp.js"></script>
 <script src="/.comsat/static/demos/stomp/shell.js"></script>
