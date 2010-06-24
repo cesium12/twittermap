@@ -1,6 +1,8 @@
+#!/usr/bin/python
 import sys, socket
 from IPython.kernel import client
-mec = client.MultiEngineClient()
+from secrets import MEC_OPTIONS
+mec = client.MultiEngineClient(*MEC_OPTIONS)
 mec.activate()
 
 specific = {
@@ -34,3 +36,6 @@ graph = {
     }
 }
 mec.push({'g' : graph})
+mec.execute('import secrets')
+mec.execute('from vectornet import router')
+mec.execute('router.startNetwork(g)')
