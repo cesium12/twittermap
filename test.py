@@ -1,4 +1,4 @@
-import sys
+import sys, socket
 from IPython.kernel import client
 mec = client.MultiEngineClient()
 mec.activate()
@@ -10,51 +10,25 @@ specific = {
     'gillette' : ['Gillette ProGlide', 'ProGlide'],
     'tech' : ['bestbuy', 'twelpforce', 'geeksquad', 'laptop', 'iphone', 'android', 'windows', 'linux', 'mac', 'leopard', 'ubuntu', 'python', 'ruby', 'java', 'django', 'rails', 'lappy', 'netbook', 'pc', 'webcam', 'google', 'ipad']
 }
-localNodes = [ # may be a race condition if these are in the wrong order
-    {
-        'name' : 'som',
-        'consumesFrom' : ['process'],
-        'classType' : 'twitternet.TwitterSom'
-    },
-    {
-        'name' : 'process',
-        'consumesFrom' : ['stream'],
-        'classType' : 'twitternet.TwitterProcess'
-    }
-]
+
+som =     dict(name='som',     consumesFrom=['process'], classType='twitternet.TwitterSom')
+process = dict(name='process', consumesFrom=['stream'],  classType='twitternet.TwitterProcess')
+stream =  dict(name='stream',  consumesFrom=None,        classType='twitternet.TwitterStream')
+sstream = dict(name='stream',  consumesFrom=None,        classType='twitternet.TwitterSpecificStream')
+somfish = dict(name='somfish', consumesFrom=['fish'],    classType='twitternet.RfbfSom')
+fish =    dict(name='fish',    consumesFrom=None,        classType='twitternet.RfbfStream')
+
 try:
     name = sys.argv[1]
     if name == 'rfbf':
-        localNodes = [
-            {
-                'name' : 'somfish',
-                'consumesFrom' : ['fish'],
-                'classType' : 'twitternet.RfbfSom'
-            },
-            {
-                'name' : 'fish',
-                'consumesFrom' : None,
-                'classType' : 'twitternet.RfbfStream',
-                'rfile' : 'backend/repubs.txt',
-                'dfile' : 'backend/dems.txt'
-            }
-        ]
+        localNodes = [ dict(somfish), dict(fish, rfile='backend/repubs.txt', dfile='backend/dems.txt') ]
     else:
-        terms = specific[name]
-        localNodes.append({
-            'name' : 'stream',
-            'consumesFrom' : None,
-            'classType' : 'twitternet.TwitterSpecificStream',
-            'wl' : terms
-        })
+        localNodes = [ dict(som), dict(process), dict(sstream, wl=specific[name]) ]
 except LookupError:
-    localNodes.append({
-        'name' : 'stream',
-        'consumesFrom' : None,
-        'classType' : 'twitternet.TwitterStream'
-    })
+    localNodes = [ dict(som), dict(process), dict(stream) ]
+
 graph = {
-    'piffelia' : {
+    socket.gethostname() : {
         'tags' : ['twittermap'],
         'localNodes' : localNodes
     }

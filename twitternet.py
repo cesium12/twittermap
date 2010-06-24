@@ -18,6 +18,8 @@ def log(obj, msg): # XXX change to network logging?
     logger.log(25, '\033[1;31m%s\033[0m: %s' % (obj.node['name'], msg))
 
 class TwitterStream(utils.ProducingNode):
+    'Reads from the Twitter "sample" stream, producing an arbitrary selection of tweets.'
+    
     def __init__(self, router, nodeDict):
         utils.ProducingNode.__init__(self, router, nodeDict)
         self.frame_number = 1
@@ -38,6 +40,8 @@ class TwitterStream(utils.ProducingNode):
         TwistedTwitterStream.sample(TWITTER_USER, TWITTER_PASSWORD, Consumer())
 
 class TwitterProcess(utils.BasicNode):
+    'Uses SocNOC to apply common-sense data to tweets.'
+    
     def __init__(self, router, nodeDict):
         utils.BasicNode.__init__(self, router, nodeDict)
         self.frame_number = 1
@@ -58,6 +62,8 @@ class TwitterProcess(utils.BasicNode):
             self.snoc.receiveTweet(tweet)
 
 class TwitterSom(utils.BasicNode):
+    'Uses SOMBuilder to construct SOMs out of processed tweets.'
+    
     def __init__(self, router, nodeDict):
         utils.BasicNode.__init__(self, router, nodeDict)
         self.frame_number = 1
@@ -78,6 +84,8 @@ class TwitterSom(utils.BasicNode):
             self.frame_number += 1
 
 class TwitterSpecificStream(utils.ProducingNode):
+    'Reads from the Twitter "filter" stream, producing tweets that match given keywords.'
+    
     def __init__(self, router, nodeDict):
         utils.ProducingNode.__init__(self, router, nodeDict)
         self.frame_number = 1
@@ -98,9 +106,9 @@ class TwitterSpecificStream(utils.ProducingNode):
         
         TwistedTwitterStream.filter(TWITTER_USER, TWITTER_PASSWORD, Consumer(), track=[x.split(None, 1)[0] for x in self.node['wl']])
 
-###
-
 class RfbfStream(utils.ProducingNode):
+    'Reads and processes entries from political feeds.'
+    
     def __init__(self, router, nodeDict):
         utils.ProducingNode.__init__(self, router, nodeDict)
         self.frame_number = 1
@@ -133,6 +141,8 @@ class RfbfStream(utils.ProducingNode):
         self.snoc._process_feed_item(*next(self.stream))
 
 class RfbfSom(utils.BasicNode):
+    'Constructs SOMs out of RFBF items.'
+    
     def __init__(self, router, nodeDict):
         utils.BasicNode.__init__(self, router, nodeDict)
         self.frame_number = 1
