@@ -17,13 +17,15 @@ som =     dict(name='som',     consumesFrom=['process'], classType='twitternet.T
 process = dict(name='process', consumesFrom=['stream'],  classType='twitternet.TwitterProcess')
 stream =  dict(name='stream',  consumesFrom=None,        classType='twitternet.TwitterStream')
 sstream = dict(name='stream',  consumesFrom=None,        classType='twitternet.TwitterSpecificStream')
+vecfish = dict(name='vecfish', consumesFrom=['fish'],    classType='twitternet.RfbfVec')
 somfish = dict(name='somfish', consumesFrom=['fish'],    classType='twitternet.RfbfSom')
 fish =    dict(name='fish',    consumesFrom=None,        classType='twitternet.RfbfStream')
 
 try:
     name = sys.argv[1]
     if name == 'rfbf':
-        localNodes = [ dict(somfish), dict(fish, rfile='backend/repubs.txt', dfile='backend/dems.txt') ]
+        #localNodes = [ dict(somfish), dict(fish, rfile='backend/repubs.txt', dfile='backend/dems.txt') ]
+        localNodes = [ dict(vecfish), dict(fish, rfile='backend/repubs.txt', dfile='backend/dems.txt') ]
     else:
         localNodes = [ dict(som), dict(process), dict(sstream, wl=specific[name]) ]
 except LookupError:

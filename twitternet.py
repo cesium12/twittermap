@@ -1,4 +1,4 @@
-import logging, socket, os, sys, re
+import logging, socket, os, sys, re, math
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'vectornet'))
 import utils
 
@@ -81,7 +81,7 @@ class TwitterSom(utils.BasicNode):
     def compute(self, data):
         for tweet in data.values():
             self.som.on_message(tweet)
-            self.frame_number += 1
+        self.frame_number += 1
 
 class TwitterSpecificStream(utils.ProducingNode):
     'Reads from the Twitter "filter" stream, producing tweets that match given keywords.'
@@ -122,7 +122,7 @@ class RfbfStream(utils.ProducingNode):
             'person' : { 'person' : 1 }
         }
         def send(data):
-            log(self, '%s with frame %d' % (data.keys(), self.frame_number))
+            log(self, '%s with frame %d' % (data, self.frame_number))
             self.sendMessage({ 'vector' : data, 'frame_number' : self.frame_number })
             self.frame_number += 1
         self.snoc.send = send
@@ -158,6 +158,53 @@ class RfbfSom(utils.BasicNode):
         return received_frame
     
     def compute(self, data):
-        for tweet in data.values():
-            self.som.on_message(tweet)
-            self.frame_number += 1
+        for datum in data.values():
+            self.som.on_message(datum)
+        self.frame_number += 1
+
+class RfbfVec(utils.BasicNode):
+    'Does math to position concepts on a plane.'
+    
+    def __init__(self, router, nodeDict):
+        utils.BasicNode.__init__(self, router, nodeDict)
+        self.frame_number = 1
+        
+        from csc.util.vector import unpack64
+        import numpy
+        def unpack(dct):
+            ret = {}
+            for k, v in dct.items():
+                ret[k] = unpack64(v)[1:]
+            return ret
+        def orthogonalize(vec1, vec2):
+            return vec2 - vec1 * numpy.vdot(vec1, vec2) / numpy.vdot(vec1, vec1)
+        
+        self.unpack = unpack
+        self.norm = numpy.linalg.norm
+        self.vdot = numpy.vdot
+        self.orthogonalize = orthogonalize
+    
+    def calculatePriority(self, received_frame, current_frame):
+        return received_frame
+    
+    def compute(self, data):
+        for datum in data.values():
+            if datum.get('text', None) and datum['text'][0] != '(':
+                categories, concepts = self.unpack(datum['categories']), self.unpack(datum['concepts'])
+                if not all([ vec.any() for vec in categories.values() ]):
+                    continue # ignore if any zero vectors
+                politics = self.orthogonalize(categories['person'], categories['politics'])
+                affect = self.orthogonalize(politics, categories['affect'])
+                pnorm, anorm = self.norm(politics), self.norm(affect)
+                concepts.pop('empty', None) # ignore 'empty' concept if it exists
+                for con, vec in concepts.items():
+                    vnorm = self.norm(vec)
+                    self.output(concept=con, text=datum['text'],
+                                size=float(math.sqrt(math.sqrt(vnorm))),
+                                x=float(self.vdot(politics, vec) / pnorm / vnorm),
+                                y=float(self.vdot(affect, vec) / anorm / vnorm))
+        self.frame_number += 1
+    
+    def output(self, **data):
+        log(self, '%s with frame %d' % (data, self.frame_number))
+        self.sendMessage({ 'vector' : data, 'frame_number' : self.frame_number })

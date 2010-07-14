@@ -152,8 +152,8 @@ def weave_streams(streams):
                 yield item
 
 def make_tuples(iter1, value2=None):
-        # Given [ foo, bar ] and baz, returns [ ( foo, baz), (bar, baz) ]
-        return itertools.izip_longest(iter1, [], fillvalue=value2)
+    # Given [ foo, bar ] and baz, returns [ ( foo, baz), (bar, baz) ]
+    return itertools.izip_longest(iter1, [], fillvalue=value2)
 
 def get_feed_items(feeds):
     for (x, y) in feeds:
