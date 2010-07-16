@@ -5,10 +5,8 @@ import random
 import numpy as np
 
 def category_wingity(socnoc, vec):
-    repub = socnoc.ccipca._v[1:, socnoc.ccipca._labels.index('#republican',
-    touch=True)]
-    dem = socnoc.ccipca._v[1:, socnoc.ccipca._labels.index('#democrat',
-    touch=True)]
+    repub = socnoc.ccipca._v[1:, socnoc.ccipca._labels.index('#republican', touch=True)]
+    dem = socnoc.ccipca._v[1:, socnoc.ccipca._labels.index('#democrat', touch=True)]
     total = 0.0
     for (concept,), value in vec.items():
         try:
@@ -60,22 +58,17 @@ def test():
         socnoc.process_labeled_posts(training)
         score = 0.0
         print 'testing'
-        results = []
-        repub = socnoc.ccipca._v[:, socnoc.ccipca._labels.index('#republican',
-        touch=True)]
-        dem = socnoc.ccipca._v[:, socnoc.ccipca._labels.index('#democrat',
-        touch=True)]
+        #repub = socnoc.ccipca._v[:, socnoc.ccipca._labels.index('#republican', touch=True)]
+        #dem = socnoc.ccipca._v[:, socnoc.ccipca._labels.index('#democrat', touch=True)]
         for post, label in testing:
-            stop_changing = hash(socnoc.ccipca._v.tostring())
+            #stop_changing = hash(socnoc.ccipca._v.tostring())
             vec = make_twit_vec(post)
             wingity = category_wingity(socnoc, vec)
-
             if label == ' #republican -#democrat': target = 1.0
             elif label == ' #democrat -#republican': target = -1.0
             correct = (wingity > 0) == (target > 0)
             print wingity, target, correct
             if correct: score += 1
-        
         print "Accuracy for this iteration: %s%%" % (score/len(testing) * 100)
         print >> logfile, "Accuracy for this iteration: %s%%" % (score/len(testing) * 100)
         print

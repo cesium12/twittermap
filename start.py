@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 import sys, socket
 from IPython.kernel import client
 from secrets import MEC_OPTIONS
@@ -37,7 +37,8 @@ graph = {
         'localNodes' : localNodes
     }
 }
-mec.push({'g' : graph})
+mec.push({ 'graph' : graph })
 mec.execute('import secrets')
 mec.execute('from vectornet import router')
-mec.execute('router.startNetwork(g)')
+mec.execute("__import__('os').environ['DJANGO_SETTINGS_MODULE'] = 'vectornet.settings'")
+mec.execute('router.startNetwork(graph)')

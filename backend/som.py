@@ -1,6 +1,5 @@
 from django.conf import settings
 import simplejson as json
-from twittersuck.spritzer.models import User
 from csc.util.vector import pack64, unpack64
 from stompy.simple import Client
 import basic_stomp
@@ -238,13 +237,14 @@ class SOMBuilder(object):
     
     def notify_listeners(self, location, vec, size, text):
         img = ''
-        if text.startswith('@') and len(text.split()) == 1:
-            try:
-                user = User.objects.get(username=text[1:])
-                img = user.profile_image_url
-                assert size[0] == size[1]
-            except StandardError:
-                pass
+#        from twittersuck.spritzer.models import User
+#        if text.startswith('@') and len(text.split()) == 1:
+#            try:
+#                user = User.objects.get(username=text[1:])
+#                img = user.profile_image_url
+#                assert size[0] == size[1]
+#            except StandardError:
+#                pass
         message = {
             'text': text,
             'x': int(location[0]),
@@ -260,8 +260,6 @@ class SOMBuilder(object):
         msg = json.dumps(data)
         self.stompSender.send(msg, destination=self.out_channel)
 
-def main():
+if __name__ == '__main__':
     som = SOMBuilder()
     som.start()
-
-if __name__ == '__main__': main()

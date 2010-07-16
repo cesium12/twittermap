@@ -3,7 +3,7 @@ import re
 import time, datetime
 
 def strip_tags(text):
-    return re.sub('<.*?>', '', text)    
+    return re.sub('<.*?>', '', text)
 
 def convert_timestamp(datestr):
     return datetime.datetime(*time.strptime(datestr, '%a %b %d %H:%M:%S +0000 %Y')[:6])
@@ -33,7 +33,7 @@ class Tweet(models.Model):
 
     @staticmethod
     def from_json(json):
-        user, created = User.objects.get_or_create(id=json['user']['id'])
+        user, _ = User.objects.get_or_create(id=json['user']['id'])
         user.username = json['user']['screen_name']
         user.name = json['user']['name']
         user.location = json['user']['location']
@@ -41,7 +41,7 @@ class Tweet(models.Model):
         user.profile_image_url = json['user']['profile_image_url']
         user.save()
 
-        tweet,_ = Tweet.objects.get_or_create(
+        Tweet.objects.get_or_create(
             id = str(json['id']),
             text = json['text'],
             user=user,
@@ -53,11 +53,9 @@ class Tweet(models.Model):
     
     @staticmethod
     def handle_delete(json):
-        id = json['delete']['status']['id']
         try:
-            to_delete = Tweet.objects.get(id=str(id))
+            to_delete = Tweet.objects.get(id=str(json['delete']['status']['id']))
             to_delete.delete()
             print "BALEETED"
         except Tweet.DoesNotExist:
             pass
-

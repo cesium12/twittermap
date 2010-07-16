@@ -1,6 +1,5 @@
-import logging, socket, os, sys, re, math
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'vectornet'))
-import utils
+import logging, socket, sys, re, math
+from vectornet import utils
 
 rootLogger = logging.getLogger('')
 rootLogger.setLevel(25)
@@ -25,7 +24,7 @@ class TwitterStream(utils.ProducingNode):
         self.frame_number = 1
     
     def startProducing(self):
-        from twittersuck.db_password import TWITTER_USER, TWITTER_PASSWORD
+        from secrets import TWITTER_USER, TWITTER_PASSWORD
         import TwistedTwitterStream
         
         class Consumer(TwistedTwitterStream.TweetReceiver):
@@ -89,22 +88,24 @@ class TwitterSpecificStream(utils.ProducingNode):
     def __init__(self, router, nodeDict):
         utils.ProducingNode.__init__(self, router, nodeDict)
         self.frame_number = 1
-        self.regex = re.compile('|'.join([x.lower() for x in self.node['wl']]), re.I)
     
     def startProducing(self):
-        from twittersuck.db_password import TWITTER_USER, TWITTER_PASSWORD
+        from secret import TWITTER_USER, TWITTER_PASSWORD
         import TwistedTwitterStream
+        
+        regex = re.compile('|'.join([x.lower() for x in self.node['wl']]), re.I)
+        track = [ x.split(None, 1)[0] for x in self.node['wl'] ]
         
         class Consumer(TwistedTwitterStream.TweetReceiver):
             def connectionFailed(this, why):
                 log(self, 'connection failed (%s)' % why)
             def tweetReceived(this, data):
-                if 'delete' not in data and data['user'] and self.regex.search(data['text']):
+                if 'delete' not in data and data['user'] and regex.search(data['text']):
                     log(self, '%s with frame %d' % (data.keys(), self.frame_number))
                     self.sendMessage({ 'vector' : data, 'frame_number' : self.frame_number })
                     self.frame_number += 1
         
-        TwistedTwitterStream.filter(TWITTER_USER, TWITTER_PASSWORD, Consumer(), track=[x.split(None, 1)[0] for x in self.node['wl']])
+        TwistedTwitterStream.filter(TWITTER_USER, TWITTER_PASSWORD, Consumer(), track=track)
 
 class RfbfStream(utils.ProducingNode):
     'Reads and processes entries from political feeds.'
@@ -113,7 +114,8 @@ class RfbfStream(utils.ProducingNode):
         utils.ProducingNode.__init__(self, router, nodeDict)
         self.frame_number = 1
         
-        from backend.snoc_backend import SocNOC, weave_streams
+        from backend.snoc_backend import SocNOC
+        from backend.utils import weave_streams
         self.snoc = SocNOC('/dummy', k=10, spicefreq=0, cnetfreq=0)
         from backend.affect_values import affect
         self.snoc.categories = {
@@ -168,28 +170,26 @@ class RfbfVec(utils.BasicNode):
     def __init__(self, router, nodeDict):
         utils.BasicNode.__init__(self, router, nodeDict)
         self.frame_number = 1
-        
-        from csc.util.vector import unpack64
         import numpy
-        def unpack(dct):
-            ret = {}
-            for k, v in dct.items():
-                ret[k] = unpack64(v)[1:]
-            return ret
-        def orthogonalize(vec1, vec2):
-            return vec2 - vec1 * numpy.vdot(vec1, vec2) / numpy.vdot(vec1, vec1)
-        
-        self.unpack = unpack
         self.norm = numpy.linalg.norm
         self.vdot = numpy.vdot
-        self.orthogonalize = orthogonalize
+        self.orthogonalize = lambda vec1, vec2: vec2 - vec1 * numpy.vdot(vec1, vec2) / numpy.vdot(vec1, vec1)
+    
+    @staticmethod
+    def unpack(dct):
+        from csc.util.vector import unpack64
+        ret = {}
+        for k, v in dct.items():
+            ret[k] = unpack64(v)[1:]
+        return ret
     
     def calculatePriority(self, received_frame, current_frame):
         return received_frame
     
     def compute(self, data):
         for datum in data.values():
-            if datum.get('text', None) and datum['text'][0] != '(':
+            text = datum.get('text', None)
+            if text and text[0] != '(':
                 categories, concepts = self.unpack(datum['categories']), self.unpack(datum['concepts'])
                 if not all([ vec.any() for vec in categories.values() ]):
                     continue # ignore if any zero vectors
@@ -199,7 +199,7 @@ class RfbfVec(utils.BasicNode):
                 concepts.pop('empty', None) # ignore 'empty' concept if it exists
                 for con, vec in concepts.items():
                     vnorm = self.norm(vec)
-                    self.output(concept=con, text=datum['text'],
+                    self.output(concept=con, text=text,
                                 size=float(math.sqrt(math.sqrt(vnorm))),
                                 x=float(self.vdot(politics, vec) / pnorm / vnorm),
                                 y=float(self.vdot(affect, vec) / anorm / vnorm))
@@ -208,3 +208,28 @@ class RfbfVec(utils.BasicNode):
     def output(self, **data):
         log(self, '%s with frame %d' % (data, self.frame_number))
         self.sendMessage({ 'vector' : data, 'frame_number' : self.frame_number })
+
+'''
+"text": "That's an\nimportant fact to preserve. //  #democrat -#republican",
+"concepts": {
+    "preserve": "PdRY_4p_5l_rMBer9fX_Gm_GbALd-gu",
+    "#republican": "TvycD2K_OECUP_1kArGAEh_9tAGl_-o",
+    "s": "RTnK_dq_yxAg-Bn0-bV_Pg-zgAt7_Gq",
+    "#democrat": "TQNk8J2Ax89rxAKc_U6_7fACT_5bABY",
+    "fact": "RQ_OAgS_zu_v3Ai2-kN_pe_i6AOs_Ia",
+    "important": "RT6MAW0_tfAFtAvW-m2_ob_lX_7w_RL"
+},
+"categories": {
+    "politics": "OhV0AGX__VABk__-AAHAAAAAAAAAAAA",
+    "affect": "OfVD__R__n__zAABAAAAAAAAAAAAAAA",
+    "person": "KTnIACI__6AADAACAAEAAAAAAAAAAAA"
+},
+"coordinates": "VWAM_M__Ng9SiQURhvOzBsxuJC5fkgO",
+"magnitudes": "VWAMCkrB3pBpWA-CA1HAooAjhAipAcp"
+
+"text": "The Republican\nParty was a captive of Gerson's wing for almost all of the Bush\nadministration's tenure, and it continues to be defined by the extremism that\nprevailed during that time. //  #republican -#democrat",
+"concept": "define",
+"x": 0.023181397467851639,
+"y": -0.26161766052246094,
+"size": 0.15005252842420591
+'''

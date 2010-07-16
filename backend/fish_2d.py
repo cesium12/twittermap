@@ -8,9 +8,7 @@ class RedFishBlueFishSOM(SOMBuilder):
             self.handle_fixed_vector(vec, text, 1, 1)
         SOMBuilder.handle_vector(self, vec, text)
     
-def main():
+if __name__ == '__main__':
     mapper = RedFishBlueFishSOM(k=9, in_channel='/topic/SocNOC/redfishbluefish',
                      out_channel='/topic/SocNOC/rfbfmap')
     mapper.start()
-
-if __name__ == '__main__': main()

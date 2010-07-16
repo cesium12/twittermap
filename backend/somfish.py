@@ -73,8 +73,6 @@ class RedFishBlueFishSOM(SOMBuilder):
                 self.lookup[old_text] = old_loc
                 self.notify_listeners(old_loc, old_vec, old_size, old_text)
 
-def main():
+if __name__ == '__main__':
     som = RedFishBlueFishSOM(k=9, map_size=(80, 60), in_channel='/topic/SocNOC/redfishbluefish', out_channel='/topic/SocNOC/somfish')
     som.start()
-
-if __name__ == '__main__': main()
