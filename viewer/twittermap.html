@@ -1,29 +1,25 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <script src="json2.js"></script>
-  <script src="unpack64.js"></script>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.js"></script>
   <script src="/.comsat/static/Orbited.js"></script>
-<link rel="stylesheet" href="twittermap.css"/></head>
+  <script>
+    TCPSocket = Orbited.TCPSocket;
+    channel = window.location.search.substring(1);
+    instream = "/topic/" + (channel || "som");
+    stompargs = [ "localhost", 61613, "legacy", "pohgh7Ohf9aeshum" ];
+  </script>
+  <script src="/.comsat/static/protocols/stomp/stomp.js"></script>
+  <script src="/.comsat/static/demos/stomp/shell.js"></script>
+  <link rel="stylesheet" href="twittermap.css"/>
+  <title>twittermap</title>
+</head>
 <body>
-
-<script>
-  TCPSocket = Orbited.TCPSocket;
-  channel = window.location.search.substring(1);
-  if(!channel) channel = "som";
-  instream = "/topic/" + channel;
-</script>
-<script src="/.comsat/static/protocols/stomp/stomp.js"></script>
-<script src="/.comsat/static/demos/stomp/shell.js"></script>
-<div style="text-align: center; font-size: 72pt; font-family: Georgia, Palatino, Times; color: #ecc; z-index: -2;">
-TwitterMap
-</div>
-<div style="text-align: center; font-size: 56pt; font-family: Georgia, Palatino, Times; color: #ccd; z-index: -2;">
-what people are talking about now
-</div>
-<div id="themap"/>
-<div id="output" style="display: none;" />
-<script src="twittermap.js"></script>
+  <img src="twitter.png" class="back" />
+  <div id="themap"></div>
+  <div id="output"></div>
+  <script src="twittermap.js"></script>
 </body>
 </html>
 

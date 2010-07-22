@@ -28,7 +28,7 @@ onload = function() {
     if (frame.body.toString().substring(1, 8) === "MESSAGE") {
       return;
     }
-    info = JSON.parse(frame.body.toString()).data.vector; // vectornet unprocessing
+    info = jQuery.parseJSON(frame.body.toString()).data.vector; // vectornet unprocessing
     if(info != null)
       viewer.handleMessage(info);
   };
@@ -68,7 +68,7 @@ function SOMViewer() {
   this.queue = [];
 
   this.handleMessage = function(info) {
-    var vec = unpack64(info.coordinates);
+    var vec = info.coordinates;
     var colorvec = this.axisColors(vec);
     this.updateCell(info.text, info.x, info.y, info.width, info.height, colorvec, info.img);
   }

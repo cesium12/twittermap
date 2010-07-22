@@ -1,4 +1,4 @@
-import logging, socket, sys, re, math
+import logging, socket, sys, re, numpy, cPickle
 from vectornet import utils
 
 rootLogger = logging.getLogger('')
@@ -45,8 +45,8 @@ class TwitterProcess(utils.BasicNode):
         utils.BasicNode.__init__(self, router, nodeDict)
         self.frame_number = 1
         
-        from backend.snoc_backend import SocNOC
-        self.snoc = SocNOC('/dummy')
+        from backend.snoc import SocNOC
+        self.snoc = SocNOC()
         def send(data):
             log(self, '%s with frame %d' % (data.keys(), self.frame_number))
             self.sendMessage({ 'vector' : data, 'frame_number' : self.frame_number })
@@ -58,7 +58,7 @@ class TwitterProcess(utils.BasicNode):
     
     def compute(self, data):
         for tweet in data.values():
-            self.snoc.receiveTweet(tweet)
+            self.snoc.receive_tweet(tweet)
 
 class TwitterSom(utils.BasicNode):
     'Uses SOMBuilder to construct SOMs out of processed tweets.'
@@ -68,7 +68,7 @@ class TwitterSom(utils.BasicNode):
         self.frame_number = 1
         
         from backend.som import SOMBuilder
-        self.som = SOMBuilder(k=19, map_size=(100, 80))
+        self.som = SOMBuilder(k=20, map_size=(100, 80))
         def send(data):
             log(self, '%s with frame %d' % (data.keys(), self.frame_number))
             self.sendMessage({ 'vector' : data, 'frame_number' : self.frame_number })
@@ -90,9 +90,8 @@ class TwitterSpecificStream(utils.ProducingNode):
         self.frame_number = 1
     
     def startProducing(self):
-        from secret import TWITTER_USER, TWITTER_PASSWORD
+        from secrets import TWITTER_USER, TWITTER_PASSWORD
         import TwistedTwitterStream
-        
         regex = re.compile('|'.join([x.lower() for x in self.node['wl']]), re.I)
         track = [ x.split(None, 1)[0] for x in self.node['wl'] ]
         
@@ -114,17 +113,17 @@ class RfbfStream(utils.ProducingNode):
         utils.ProducingNode.__init__(self, router, nodeDict)
         self.frame_number = 1
         
-        from backend.snoc_backend import SocNOC
-        from backend.utils import weave_streams
-        self.snoc = SocNOC('/dummy', k=10, spicefreq=0, cnetfreq=0)
-        from backend.affect_values import affect
-        self.snoc.categories = {
-            'affect' : affect,
-            'politics' : { '#republican' : 1, '#democrat' : -1 },
-            'person' : { 'person' : 1 }
-        }
+        from backend.snoc import SocNOC
+        from backend.utils import weave_streams, local_file
+        self.snoc = SocNOC(k=10, spicefreq=0, cnetfreq=0)
+        with open(local_file('affect.pickle')) as affect_file:
+            self.snoc.categories = {
+                'affect' : cPickle.load(affect_file),
+                'politics' : { '#republican' : 1, '#democrat' : -1 },
+                'person' : { 'person' : 1 }
+            }
         def send(data):
-            log(self, '%s with frame %d' % (data, self.frame_number))
+            log(self, '%s with frame %d' % (data.keys(), self.frame_number))
             self.sendMessage({ 'vector' : data, 'frame_number' : self.frame_number })
             self.frame_number += 1
         self.snoc.send = send
@@ -135,12 +134,12 @@ class RfbfStream(utils.ProducingNode):
             dem = [(line.strip(), ' #democrat -#republican') for line in dfile]
         def stream():
             while True:
-                for s in self.snoc._process_feed_list(weave_streams([rep, dem])):
+                for s in self.snoc.process_feed_list(weave_streams((rep, dem))):
                     yield s
         self.stream = stream()
     
     def compute(self): # XXX not Twisted... maybe should be?
-        self.snoc._process_feed_item(*next(self.stream))
+        self.snoc.process_feed_item(*next(self.stream))
 
 class RfbfSom(utils.BasicNode):
     'Constructs SOMs out of RFBF items.'
@@ -149,8 +148,8 @@ class RfbfSom(utils.BasicNode):
         utils.BasicNode.__init__(self, router, nodeDict)
         self.frame_number = 1
         
-        from backend.somfish import RedFishBlueFishSOM
-        self.som = RedFishBlueFishSOM(k=9, map_size=(80, 60))
+        from backend.somfish import SOMFish
+        self.som = SOMFish(k=10, map_size=(80, 60))
         def send(data):
             log(self, '%s with frame %d' % (data.keys(), self.frame_number))
             self.sendMessage({ 'vector' : data, 'frame_number' : self.frame_number })
@@ -170,17 +169,16 @@ class RfbfVec(utils.BasicNode):
     def __init__(self, router, nodeDict):
         utils.BasicNode.__init__(self, router, nodeDict)
         self.frame_number = 1
-        import numpy
-        self.norm = numpy.linalg.norm
-        self.vdot = numpy.vdot
-        self.orthogonalize = lambda vec1, vec2: vec2 - vec1 * numpy.vdot(vec1, vec2) / numpy.vdot(vec1, vec1)
+    
+    @staticmethod
+    def orthogonalize(vec1, vec2):
+        return vec2 - vec1 * numpy.vdot(vec1, vec2) / numpy.vdot(vec1, vec1)
     
     @staticmethod
     def unpack(dct):
-        from csc.util.vector import unpack64
         ret = {}
         for k, v in dct.items():
-            ret[k] = unpack64(v)[1:]
+            ret[k] = numpy.array(v)[1:]
         return ret
     
     def calculatePriority(self, received_frame, current_frame):
@@ -191,45 +189,17 @@ class RfbfVec(utils.BasicNode):
             text = datum.get('text', None)
             if text and text[0] != '(':
                 categories, concepts = self.unpack(datum['categories']), self.unpack(datum['concepts'])
-                if not all([ vec.any() for vec in categories.values() ]):
-                    continue # ignore if any zero vectors
+                if not all( vec.any() for vec in categories.values() ):
+                    continue # ignore if any are zero vectors
                 politics = self.orthogonalize(categories['person'], categories['politics'])
                 affect = self.orthogonalize(politics, categories['affect'])
-                pnorm, anorm = self.norm(politics), self.norm(affect)
+                pnorm, anorm = numpy.linalg.norm(politics), numpy.linalg.norm(affect)
                 concepts.pop('empty', None) # ignore 'empty' concept if it exists
                 for con, vec in concepts.items():
-                    vnorm = self.norm(vec)
-                    self.output(concept=con, text=text,
-                                size=float(math.sqrt(math.sqrt(vnorm))),
-                                x=float(self.vdot(politics, vec) / pnorm / vnorm),
-                                y=float(self.vdot(affect, vec) / anorm / vnorm))
+                    vnorm = numpy.linalg.norm(vec)
+                    data = dict(concept=con, text=text, size=float(numpy.sqrt(numpy.sqrt(vnorm))),
+                                x=float(numpy.vdot(politics, vec) / pnorm / vnorm),
+                                y=float(numpy.vdot(affect, vec) / anorm / vnorm))
+                    log(self, '%s with frame %d' % (data.keys(), self.frame_number))
+                    self.sendMessage({ 'vector' : data, 'frame_number' : self.frame_number })
         self.frame_number += 1
-    
-    def output(self, **data):
-        log(self, '%s with frame %d' % (data, self.frame_number))
-        self.sendMessage({ 'vector' : data, 'frame_number' : self.frame_number })
-
-'''
-"text": "That's an\nimportant fact to preserve. //  #democrat -#republican",
-"concepts": {
-    "preserve": "PdRY_4p_5l_rMBer9fX_Gm_GbALd-gu",
-    "#republican": "TvycD2K_OECUP_1kArGAEh_9tAGl_-o",
-    "s": "RTnK_dq_yxAg-Bn0-bV_Pg-zgAt7_Gq",
-    "#democrat": "TQNk8J2Ax89rxAKc_U6_7fACT_5bABY",
-    "fact": "RQ_OAgS_zu_v3Ai2-kN_pe_i6AOs_Ia",
-    "important": "RT6MAW0_tfAFtAvW-m2_ob_lX_7w_RL"
-},
-"categories": {
-    "politics": "OhV0AGX__VABk__-AAHAAAAAAAAAAAA",
-    "affect": "OfVD__R__n__zAABAAAAAAAAAAAAAAA",
-    "person": "KTnIACI__6AADAACAAEAAAAAAAAAAAA"
-},
-"coordinates": "VWAM_M__Ng9SiQURhvOzBsxuJC5fkgO",
-"magnitudes": "VWAMCkrB3pBpWA-CA1HAooAjhAipAcp"
-
-"text": "The Republican\nParty was a captive of Gerson's wing for almost all of the Bush\nadministration's tenure, and it continues to be defined by the extremism that\nprevailed during that time. //  #republican -#democrat",
-"concept": "define",
-"x": 0.023181397467851639,
-"y": -0.26161766052246094,
-"size": 0.15005252842420591
-'''

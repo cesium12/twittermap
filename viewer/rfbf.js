@@ -1,297 +1,162 @@
-// for debugging purposes
-thingy = null;
+var display = $("#output");
+var container = $("#themap");
+var stomp;
 
 onload = function() {
-  // set up shell.
-  output = document.getElementById('output');
-  var shell = new Shell(output);
-
-  // set up stomp client.
   stomp = new STOMPClient();
-  stomp.onopen = function() {
-    display("Transport opened");
-    stomp.subscribe(instream);
+  stomp.onopen           = function()      { stomp.subscribe(instream); };
+  stomp.onclose          = function(code)  { alert("onclose: " + code); };
+  stomp.onerror          = function(error) { alert("onerror: " + error); };
+  stomp.onerrorframe     = function(frame) { alert("onerrorframe: " + frame.body); };
+  stomp.onconnectedframe = function()      { display.text("Connected."); };
+  stomp.onmessageframe   = function(frame) {
+    if(frame.body.toString().substring(1, 8) !== "MESSAGE")
+      viewer.handleMessage(jQuery.parseJSON(frame.body.toString()).data.vector); // vectornet unprocessing
   };
-  stomp.onclose = function(code) {
-    display("Transport closed (code: " + code + ")");
-  };
-  stomp.onerror = function(error) {
-    alert("onerror: " + error);
-  };
-  stomp.onerrorframe = function(frame) {
-    alert("onerrorframe: " + frame.body);
-  };
-  stomp.onconnectedframe = function() {
-    display("Connected.");
-  };
-  stomp.onmessageframe = function(frame) {
-    if (frame.body.toString().substring(1, 8) === "MESSAGE") {
-      return;
-    }
-    info = JSON.parse(frame.body.toString()).data.vector; // vectornet unprocessing
-    if(info != null)
-      viewer.handleMessage(info);
-  };
-  stomp.connect('localhost', 61613, 'legacy', 'pohgh7Ohf9aeshum');
+  stomp.connect.apply(stomp, stompargs);
 };
 onunload = function() {
   stomp.reset();
 }
-display = function(text) {
-  document.getElementById('output').innerHTML = text;
+
+function makeElement(parent, tag, cls) {
+  if(tag) {
+    elt = document.createElement(tag);
+    elt.setAttribute("class", cls || "");
+  } else
+    elt = document.createTextNode("");
+  parent.append(elt);
+  return $(elt);
 }
 
-constrain = function(n, min, max) {
-  if (n < min) return min;
-  else if (n > max) return max;
-  else return n;
+function catColors(x, y) {
+  return [Math.floor(80 + 80 * x), Math.floor(80 + 40 * y), Math.floor(80 - 80 * x)];
 }
 
-similarity = function(vec1, vec2) {
-  var total = 0.0;
-  var sq_vec1 = 0.0;
-  var sq_vec2 = 0.0;
-  // yes, skip index 0
-  for (var i=1; i<vec1.length; i++) {
-    sq_vec1 += vec1[i] * vec1[i];
-    sq_vec2 += vec2[i] * vec2[i];
-    total += vec1[i] * vec2[i];
+function makeColor(rgb) {
+  return "rgb(" + rgb.join() + ")";
+}
+
+function makeCell() {
+  var cell = makeElement(container, "div", "off cell");
+  cell.theHeaderText = makeElement(cell, "div", "header");
+  cell.theText       = makeElement(cell, "span", "text");
+  cell.theSubtextD   = makeElement(cell, "span", "collapse dem");
+  cell.theSubtextR   = makeElement(cell, "span", "collapse rep");
+  cell.theSubtext    = $("span.collapse", cell);
+  cell.theImg        = makeElement(cell, "img");
+  cell.shown         = false;
+  
+  cell.doAge   = function()           { this.addClass("old").doFade("theText"); };
+  cell.doHide  = function()           { this.addClass("off"); this.shown = false; };
+  cell.doShow  = function()           { this.attr("class", "cell new " + this.type); this.shown = true; };
+  cell.setImg  = function(src, style) { this.theImg.attr("src", src).css(style); }
+  cell.setType = function(type)       { this.type = type; return this; }
+  
+  cell.doFade = function(elt) {
+    var child = this[elt];
+    var opacity = child.css("opacity") - 0.2;
+    if(opacity <= 0) {
+        this.doHide();
+        opacity = 1;
+    }
+    child.css("opacity", opacity);
   }
-  return total / Math.sqrt(sq_vec1) / Math.sqrt(sq_vec2);
+  return cell;
 }
-
-magnitude = function(vec) {
-  var sq = 0.0;
-  for (var i=1; i<vec.length; i++) {
-    sq += vec[i] * vec[i];
-  }
-  return Math.sqrt(sq);
-}
-
-orthogonalize = function(vec1, vec2) {
-  var vecout = new Array(vec1.length);
-  var sq_vec1 = 0.0;
-  var sq_vec2 = 0.0;
-  var total = 0.0;
-  for (var i=1; i<vec1.length; i++) {
-    sq_vec1 += vec1[i] * vec1[i];
-    sq_vec2 += vec2[i] * vec2[i];
-    total += vec1[i] * vec2[i];
-  }
-  for (var i=1; i<vec1.length; i++) {
-    vecout[i] = vec2[i] - vec1[i] / sq_vec1 * total;
-  }
-  return vecout;
-}
-
-/* The CategoryViewer class updates an HTML view to show what is going on in a
- * self-organizing map.
- */
 
 function CategoryViewer() {
   if ( !(this instanceof arguments.callee) )
     throw Error("Constructor called as a function");
-
-  this.height = 150;
-  this.width = 150;
-  this.cellHeight = 0.5;
-  this.cellWidth = 0.8;
-  this.cellUnit = "em";
-  this.cells = {};
-  this.container = document.getElementById('themap');
-  this.queueIndex = 0;
-  this.queueMax = 800;
-  this.queue = [];
-  this.politics_vec = null;
-  this.affect_vec = null;
-
+  
+  this.cellMap = {};
+  this.cellList = [];
+  this.cellNum = 500;
+  this.cellStep = 50;
+  this.cellPos = 0;
+  
+  this.queueStart = this.queueEnd = { data: null, prev: null, next: null };
+  this.queueMax = 1000;
+  this.queueLen = 0;
+  this.queueDrop = 0.8;
+  
+  for(i = 0; i < this.cellNum; i++)
+    this.cellList.push(makeCell());
+  
   this.handleMessage = function(info) {
-    if (info.text === undefined) return;
-    if (info.text === "") return;
-    if (info.text.charAt(0) == '(') return;
-    this.person_vec = unpack64(info.categories.person);
-    this.politics_vec = orthogonalize(this.person_vec, unpack64(info.categories.politics));
-    this.affect_vec = orthogonalize(this.politics_vec, unpack64(info.categories.affect));
-    for (var concept in info.concepts) {
-      if (concept === "empty") continue;
-      var vec = unpack64(info.concepts[concept]);
-      var x = similarity(this.politics_vec, vec);
-      var y = similarity(this.affect_vec, vec);
-      var colorvec = this.catColors(x,y);
-      var xp = (x+1)*50;
-      var yp = (-y+1)*40;
-      size = Math.sqrt(Math.sqrt(magnitude(vec))) * 50;
-      this.updateCell(concept, xp, yp, size*2, size/2, colorvec, info.text);
-    }
+    if(Math.random() < this.queueDrop)
+      return;
+    this.queueEnd = this.queueEnd.next = { data: info, prev: this.queueEnd, next: null };
+    this.queueLen++;
   }
   
-  this.makeCell = function() {
-    var cell = document.createElement("div");
-    cell.setAttribute("class", "cell-off");
-    this.container.appendChild(cell);
-
-    var header = document.createElement("div");
-    header.setAttribute("class", "header");
-    cell.appendChild(header);
-    var headerText = document.createTextNode("");
-    header.appendChild(headerText);
-    var spanTag = document.createElement("span");
-    cell.appendChild(spanTag);
-    var textNode = document.createTextNode("");
-    spanTag.appendChild(textNode);
-    var spanTag2 = document.createElement("span");
-    spanTag2.setAttribute("class", "collapse dem");
-    cell.appendChild(spanTag2);
-    var spanTag3 = document.createElement("span");
-    spanTag3.setAttribute("class", "collapse rep");
-    cell.appendChild(spanTag3);
-    var subtextNodeD = document.createTextNode("");
-    spanTag2.appendChild(subtextNodeD);
-    var subtextNodeR = document.createTextNode("");
-    spanTag3.appendChild(subtextNodeR);
-    var imgTag = document.createElement("img");
-    cell.appendChild(imgTag);
-
-    cell.theHeader = header;
-    cell.theHeaderText = headerText;
-    cell.theSpan = spanTag;
-    cell.theSpan2 = spanTag2;
-    cell.theSpan3 = spanTag3;
-    cell.theText = textNode;
-    cell.theSubtextD = subtextNodeD;
-    cell.theSubtextR = subtextNodeR;
-    cell.theImg = imgTag;
-    return cell;
-  }
-
-  for (var i=0; i<this.queueMax; i++) {
-    this.queue[i] = this.makeCell();
-  }
+  this.queueStep = function() {
+    if(this.queueStart.next == null)
+      return;
+    var info = this.queueStart.data;
+    do {
+      this.queueStart = this.queueStart.next;
+      this.queueLen--;
+    } while(this.queueLen > this.queueMax);
+    this.queueStart.prev = null;
+    display.text(this.queueLen);
+    if(info)
+      this.updateCell(info.concept, info.text,
+                      1 + info.x, 1 - info.y,
+                      info.size * 100, info.size * 25,
+                      catColors(info.x, info.y));
+  };
   
-  this.ageCell = function(cell) {
-    cell.setAttribute("class", cell.getAttribute("class").replace(/new/g, "old"));
-  }
-
-  this.updateCell = function(text, x, y, width, height, color, subtext) {
-    this.queueIndex = (this.queueIndex + 1) % this.queueMax;
-    var img=null;
-    for (var i=0; i < this.queueMax / 100; i++) {
-      this.ageCell(this.queue[(this.queueIndex + i*100) % this.queueMax]);
-    }
-    var cell = this.queue[this.queueIndex];
-    var erase = true;
-    if (this.cells[text]) {
-      cell = this.cells[text];
-      erase = false;
-    }
-    else if (this.cells[cell.text]) {
-      delete this.cells[cell.text];
-    }
-    if (!cell.setAttribute) {
-      delete cell;
-      cell = this.queue[this.queueIndex] = this.makeCell();
-    }
-    cell.setAttribute("class", "off");
-    cell.theText.nodeValue = "";
-    cell.theHeaderText.nodeValue = "";
-    if (erase) {
-      cell.theSubtextD.nodeValue = "";
-      cell.theSubtextR.nodeValue = "";
-    }
-    cell.style.left = (x * this.cellWidth) + this.cellUnit;
-    cell.style.top = (y * this.cellHeight) + this.cellUnit;
-    if (!text || text === "not") {return cell;}
-    var type = "concept";
-    if (text === "#democrat") {
-      img = "donkey.jpg";
-      width = 8;
-      height = 8;
-    }
-    if (text === "#republican") {
-      img = "elephant.jpg";
-      width = 8;
-      height = 8;
-    }
-    if (text.indexOf(' // ') > -1) {
-      type = "tweet";
-      if (text.indexOf(' #democrat') > -1) {
+  this.updateCell = function(text, subtext, x, y, width, height, color) {
+    this.cellPos = (this.cellPos + 1) % this.cellNum;
+    for(i = this.cellPos % this.cellStep; i < this.cellNum; i += this.cellStep)
+      if(this.cellList[i].shown)
+        this.cellList[i].doAge();
+    
+    var cell = this.cellList[this.cellPos];
+    if(typeof(this.cellMap[text]) === "object")
+      cell = this.cellMap[text];
+    else
+      cell.theSubtext.text("");
+    if(!text || text === "not")
+      return cell.doHide();
+    cell.setType("concept").theHeaderText.text("");
+    this.cellMap[text] = cell;
+    
+    var imgDim = "3.84em";
+    if(text === "#democrat")
+      cell.setType("user").setImg("donkey.png", { width : "3.84em" });
+    if(text === "#republican")
+      cell.setType("user").setImg("elephant.png", { width : "3.84em" });
+    
+    var tIndex = text.indexOf(" // "), sIndex = text.indexOf(" ");
+    if(tIndex > -1) {
+      if(text.indexOf(" #democrat") > -1)
         color = [0, 0, 255];
-      }
-      else if (text.indexOf(' #republican') > -1) {
+      else if(text.indexOf(" #republican") > -1)
         color = [255, 0, 0];
-      }
-      text = text.substring(0, text.indexOf(' // '));
-      cell.theHeaderText.nodeValue = '';
+      cell.setType("tweet");
+      text = text.substring(0, tIndex);
     }
-    if (img) {
-      cell.theImg.src = img;
-      cell.theHeaderText.nodeValue = text;
-      cell.theImg.style.width = (width * 0.6 * this.cellWidth) + this.cellUnit;
-      cell.theImg.style.height = (height * 0.6 * this.cellWidth) + this.cellUnit;
-      type = "user";
-    }
-    cell.style.color = "rgb("+color[0]+","+color[1]+
-      ","+color[2]+")";
-    
-    if (text.charAt(0) === '@' && text.indexOf(' ') > 0) {
-      pos = text.indexOf(' ');
-      cell.theHeaderText.nodeValue = text.substring(0, pos);
-      text = text.substring(pos + 1);
-      type = "tweet";
+    if(text.charAt(0) === "@" && sIndex > 0) {
+      cell.setType("tweet");
+      cell.theHeaderText.text(text.substring(0, sIndex));
+      text = text.substring(sIndex + 1);
     }
     
-    var fontSize = (height*4) + "pt";
-    if (type === "concept") {
-      cell.theSpan.style.fontSize = fontSize;
-      var subtext2 = subtext.substring(0, subtext.indexOf(' // '));
-      if (subtext.indexOf(' #democrat') > 0) {
-        cell.theSubtextD.nodeValue = "(D) " + subtext2;
-      } else if (subtext.indexOf(' #republican') > 0) {
-        cell.theSubtextR.nodeValue = "(R) " + subtext2;
-      }
-    } else {
-      cell.theSpan.style.fontSize = "inherit";
+    if(cell.type === "concept") {
+      var subtext2 = subtext.split(" // ", 1)[0];
+      if(subtext.indexOf(" #democrat") > 0)
+        cell.theSubtextD.text("(D) " + subtext2);
+      if(subtext.indexOf(" #republican") > 0)
+        cell.theSubtextR.text("(R) " + subtext2);
     }
-    cell.theText.nodeValue = text;
-    var theclass = "cell new "+type;
-    if (type === "tweet") theclass += " tweet-new";
-    cell.setAttribute("class", theclass);
-    this.cells[text] = cell;
-    return cell;
-  }
-
-  this.catColors = function(x, y) {
-    return [Math.floor(80 + 80*x), Math.floor(80 + 40*y), Math.floor(80 - 80*x)];
-  }
-
-  this.mouseWheel = function(notches) {
-  }
-};
-
-viewer = new CategoryViewer();
-
-/* Mouse wheel handling */
-wheel = function(event) {
-  if (!event) event = window.event; // IE
-  if (event.wheelDelta) { // IE/Opera
-    delta = event.wheelDelta/120;
-    if (window.opera) delta = -delta;
-  } else if (event.detail) { // Mozilla
-    delta = -event.detail/3;
-  }
-  viewer.mouseWheel(delta);
-  if (event.preventDefault) event.preventDefault();
-  event.returnValue = false;
+    cell.theText.css("fontSize", height * 4 + "pt").text(text);
+    cell.css({ left  : x * 40 + "em",
+               top   : y * 20 + "em",
+               color : makeColor(color) }).doShow();
+  };
 }
 
-
-/** disabled so we can scroll
-
-if (window.addEventListener)
-  // Mozilla
-  window.addEventListener('DOMMouseScroll', wheel, false);
-// IE or Opera
-window.onmousewheel = document.onmousewheel = wheel;
-*/
-
-// vim:sw=2:ts=2:sts=2:tw=0:
+viewer = new CategoryViewer();
+$(function() { setInterval("viewer.queueStep()", 0); });

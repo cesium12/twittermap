@@ -51,7 +51,7 @@ onload = function() {
     if (frame.body.toString().substring(1, 8) == "MESSAGE") {
       return;
     }
-    info = JSON.parse(frame.body.toString());
+    info = jQuery.parseJSON(frame.body.toString());
     viewer.handleMessage(info);
   };
   stomp.connect('localhost', 61613);

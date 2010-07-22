@@ -24,8 +24,7 @@ fish =    dict(name='fish',    consumesFrom=None,        classType='twitternet.R
 try:
     name = sys.argv[1]
     if name == 'rfbf':
-        #localNodes = [ dict(somfish), dict(fish, rfile='backend/repubs.txt', dfile='backend/dems.txt') ]
-        localNodes = [ dict(vecfish), dict(fish, rfile='backend/repubs.txt', dfile='backend/dems.txt') ]
+        localNodes = [ dict(vecfish), dict(somfish), dict(fish, rfile='backend/repubs.txt', dfile='backend/dems.txt') ]
     else:
         localNodes = [ dict(som), dict(process), dict(sstream, wl=specific[name]) ]
 except LookupError:
@@ -38,7 +37,6 @@ graph = {
     }
 }
 mec.push({ 'graph' : graph })
-mec.execute('import secrets')
 mec.execute('from vectornet import router')
 mec.execute("__import__('os').environ['DJANGO_SETTINGS_MODULE'] = 'vectornet.settings'")
 mec.execute('router.startNetwork(graph)')

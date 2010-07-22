@@ -1,80 +1,37 @@
+@import url(http://fonts.googleapis.com/css?family=Tangerine);
+@import url(http://fonts.googleapis.com/css?family=Cantarell);
+
 body {
-    font-family: "Gill Sans", "Helvetica", sans-serif;
+    font-family: "Cantarell", "Gill Sans", "Helvetica", sans-serif;
     font-size: 10pt;
-    background-color: #ddd;
+    background: cornsilk;
     width: 100%;
     overflow: hidden;
+}
+
+#output {
+    font: bold 20pt "Tangerine", "Helvetica", sans-serif;
+}
+
+.back {
+    position: fixed;
+    margin: auto;
+    top: 0px;
+    left: 0px;
+    right: 0px;
+    bottom: 0px;
 }
 
 .cell {
     position: absolute;
     margin: 1px;
-}
-
-.off {
-    display: none;
-}
-
-.cell .header {
-    font-size: 80%;
-    color: white;
-    background-color: #777;
-    display: none;
-}
-
-.tweet-old {
-    background:#ddd url('comment.png') no-repeat top left;
-    width: 25px;
-    height: 20px;
-    z-index: -1;
-}
-
-.tweet-old:hover {
-    width: 15em;
-    height: auto;
-    background-image: none;
-}
-
-.tweet-old .header {
-    display: none;
-}
-
-.tweet-old:hover .header {
-    display: block;
-}
-
-.tweet-old span {
-    display: none;
-}
-
-.tweet-old:hover span {
-    display: inline;
-}
-
-.tweet span {
-    font-size: 75%;
-}
-
-.new {
     z-index: 1;
-    background-color: #fff;
-    border: 1px solid #77a;
     height: auto;
 }
-
-.tweet-new {
-    width: 15em;
-    height: auto;
-    z-index: 2;
-}
-
-.user {
-    width: auto;
-}
-
-.concept {
-    width: auto;
-}
+.cell.off     { display: none; }
+.cell.old     { z-index: auto; }
+.cell.user    { width: auto; }
+.cell.concept { width: auto; }
 
 .cell:hover {
     z-index: 3;
@@ -82,56 +39,57 @@ body {
     border: 1px solid #aa8;
     margin: 0px;
 }
+.cell.user:hover {
+    background: transparent;
+    border: none;
+    margin: 1px;
+}
 
-.tweet:hover {
+.cell.tweet {
     width: 15em;
     height: auto;
+    z-index: 2;
+}
+.cell.tweet.old {
+    background: #ddd url('comment.png') no-repeat top left;
+    width: 25px;
+    height: 20px;
+    z-index: -1;
+}
+.cell.tweet.old:hover {
+    background-image: none;
 }
 
-.tweet:hover .header {
+.cell .header {
+    font-size: 80%;
+    color: white;
+    background-color: #777;
     display: block;
 }
+.cell.old             .header { display: none; }
+.cell.user            .header { display: none; }
+.cell.user:hover      .header { display: none; }
+.cell.tweet:hover     .header { display: block; }
+.cell.tweet.old       .header { display: none; }
+.cell.tweet.old:hover .header { display: block; }
 
-.user:hover .header {
-    display: block;
-}
+.cell     .text { text-shadow: #fff 0px 0px 1em, #fff 0px 0px 1em, #fff 0px 0px 1em, #fff 0px 0px 1em, #fff 0px 0px 1em; }
+.cell.old .text { text-shadow: none; }
 
-.new .header {
-    display: block;
-}
+.cell                 span { margin: 0.5ex; }
+.cell.user            span { display: none; }
+.cell.user:hover      span { display: none; }
+.cell.tweet           span { font-size: 75%; }
+.cell.tweet.old       span { display: none; }
+.cell.tweet.old:hover span { display: inline; }
 
-.user .header {
-    display: none;
-}
+.cell         img { 0.5ex 0.5ex 0ex 0.5ex; }
+.cell.user    img { display: inline; }
+.cell.concept img { display: none; }
+.cell.tweet   img { display: none; }
 
-.old {
-    border: none;
-}
+.cell       .collapse { display: none; }
+.cell:hover .collapse { display: block; }
 
-.cell span {
-    margin: 0.5ex;
-}
-
-
-.cell img {
-    margin-top: 0.5ex;
-    margin-left: 0.5ex;
-    margin-right: 0.5ex;
-}
-
-.user span {
-    display: none;
-}
-
-.user img {
-    display: inline;
-}
-
-.concept img {
-    display: none;
-}
-
-.tweet img {
-    display: none;
-}
-
+.dem { color: #00f; }
+.rep { color: #f00; }
