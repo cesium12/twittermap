@@ -1,203 +1,184 @@
-// for debugging purposes
-thingy = null;
+map = $("<div></div>").appendTo("body");
+container = $("<div></div>").attr("class", "back").appendTo("body");
+background = $("<img></img>").appendTo(container);
+display = $("<div></div>").appendTo(container);
 
 onload = function() {
-  // set up shell.
-  output = document.getElementById('output');
-  var shell = new Shell(output);
-
-  // set up stomp client.
   stomp = new STOMPClient();
-  stomp.onopen = function() {
-    display("Transport opened");
-    stomp.subscribe(instream);
+  stomp.onopen           = function()      { stomp.subscribe(channel); };
+  stomp.onclose          = function(code)  { alert("onclose: " + code); };
+  stomp.onerror          = function(error) { alert("onerror: " + error); };
+  stomp.onerrorframe     = function(frame) { alert("onerrorframe: " + frame.body); };
+  stomp.onconnectedframe = function()      { container.animate({ opacity: 0.3 }, "slow"); };
+  stomp.onmessageframe   = function(frame) {
+    if(frame.body.toString().substring(1, 8) !== "MESSAGE")
+      viewer.handleMessage(jQuery.parseJSON(frame.body.toString()).data.vector);
   };
-  stomp.onclose = function(code) {
-    display("Transport closed (code: " + code + ")");
-  };
-  stomp.onerror = function(error) {
-    alert("onerror: " + error);
-  };
-  stomp.onerrorframe = function(frame) {
-    alert("onerrorframe: " + frame.body);
-  };
-  stomp.onconnectedframe = function() {
-    display("Connected.");
-  };
-  stomp.onmessageframe = function(frame) {
-    if (frame.body.toString().substring(1, 8) === "MESSAGE") {
-      return;
-    }
-    info = jQuery.parseJSON(frame.body.toString()).data.vector; // vectornet unprocessing
-    if(info != null)
-      viewer.handleMessage(info);
-  };
-  stomp.connect('localhost', 61613, 'legacy', 'pohgh7Ohf9aeshum');
+  stomp.connect("localhost", 61613, "legacy", "pohgh7Ohf9aeshum");
 };
 onunload = function() {
   stomp.reset();
 }
-display = function(text) {
-  document.getElementById('output').innerHTML = text;
+
+function axisColors(vec) {
+  var color = [ 0, 0, 0 ];
+  for(var i = 0; i < 3; i++) {
+    for(var j = i + 1; j < vec.length; j += 3)
+      color[i] += vec[j];
+    color[i] = Math.min(180, Math.floor(90 + 1000 * color[i]));
+  }
+  return color;
 }
 
-constrain = function(n, min, max) {
-  if (n < min) return min;
-  else if (n > max) return max;
-  else return n;
+function makeElement(parent, tag, cls) {
+  return $(document.createElement(tag)).attr("class", cls || "").appendTo(parent);
 }
 
+function makeCell() {
+  var cell = makeElement(map, "div", "cell off");
+  cell.theHeaderText = makeElement(cell, "div", "header");
+  cell.theText       = makeElement(cell, "span", "text");
+  cell.theImg        = makeElement(cell, "img");
+  cell.opacity       = 0;
+  cell.type          = "concept";
+  cell.text          = null;
+  
+  cell.setOpac = function(opac)     { this.css("opacity", (this.opacity = opac) / opacMax); };
+  cell.setImg  = function(src, css) { this.theImg.attr("src", src).css(css); };
+  
+  cell.doHide = function() {
+    if(this.opacity) {
+      this.attr("class", "cell off").setOpac(0);
+      this.text = null;
+    }
+  };
+  cell.doShow = function(left, top, color, old) {
+    var css = { left: left + "em", top: top + "em", opacity: 1 };
+    this.attr("class", "cell new " + this.type).css("color", "rgb(" + color.join() + ")");
+    if(old)
+      this.animate(css, "fast");
+    else
+      this.css(css);
+    this.opacity = opacMax;
+  }
+  cell.doAge = function() {
+    if(this.opacity > 1) {
+      if(this.opacity == opacMax)
+        this.addClass("old");
+      this.setOpac(this.opacity - 1);
+    } else
+      this.doHide();
+  };
+  
+  cell.offset({ left: $(document).width() / 2, top: $(document).height() / 2 });
+  return cell;
+}
 
-/* The SOMViewer class updates an HTML view to show what is going on in a
- * self-organizing map.
- */
-
-function SOMViewer() {
-  if ( !(this instanceof arguments.callee) )
-    throw Error("Constructor called as a function");
-
-  this.height = 150;
-  this.width = 150;
-  this.cellHeight = 0.6;
-  this.cellWidth = 0.8;
-  this.cellUnit = "em";
-  this.cells = {};
-  this.container = document.getElementById('themap');
-  this.queueIndex = 0;
-  this.queueMax = 800;
-  this.queue = [];
-
+function Viewer() {
+  this.cellMap = {};
+  this.cellList = [];
+  this.cellPos = 0;
+  
+  this.queueStart = this.queueEnd = { data: null, prev: null, next: null };
+  this.queueLen = 0;
+  
   this.handleMessage = function(info) {
-    var vec = info.coordinates;
-    var colorvec = this.axisColors(vec);
-    this.updateCell(info.text, info.x, info.y, info.width, info.height, colorvec, info.img);
+    if(Math.random() * queueMax < this.queueLen)
+      return;
+    this.queueEnd = this.queueEnd.next = { data: info, prev: this.queueEnd, next: null };
+    this.queueLen++;
   }
   
-  this.makeCell = function() {
-    var cell = document.createElement("div");
-    cell.setAttribute("class", "cell-off");
-    this.container.appendChild(cell);
-
-    var header = document.createElement("div");
-    header.setAttribute("class", "header");
-    cell.appendChild(header);
-    var headerText = document.createTextNode("");
-    header.appendChild(headerText);
-    var spanTag = document.createElement("span");
-    cell.appendChild(spanTag);
-    var textNode = document.createTextNode("");
-    spanTag.appendChild(textNode);
-    var imgTag = document.createElement("img");
-    cell.appendChild(imgTag);
-
-    cell.theHeader = header;
-    cell.theHeaderText = headerText;
-    cell.theSpan = spanTag;
-    cell.theText = textNode;
-    cell.theImg = imgTag;
-    return cell;
-  }
-
-  for (var i=0; i<this.queueMax; i++) {
-    this.queue[i] = this.makeCell();
+  this.queueStep = function() {
+    if(this.queueStart.next == null)
+      return;
+    var info = this.queueStart.data;
+    do {
+      this.queueStart = this.queueStart.next;
+      this.queueLen--;
+    } while(this.queueLen > queueMax);
+    this.queueStart.prev = null;
+    this.showProgress();
+    if(info)
+      this.updateCell(info);
   }
   
-  this.ageCell = function(cell) {
-    cell.setAttribute("class", cell.getAttribute("class").replace(/new/g, "old"));
+  this.showProgress = function() {
+    display.width(100 * this.queueLen / queueMax + "%");
   }
-
-  this.updateCell = function(text, x, y, width, height, color, img) {
-    this.queueIndex = (this.queueIndex + 1) % this.queueMax;
-    for (var i=0; i < this.queueMax / 80; i++) {
-      this.ageCell(this.queue[(this.queueIndex + i*80) % this.queueMax]);
-    }
-    var cell = this.queue[this.queueIndex];
-
-    if (this.cells[text]) {
-      cell = this.cells[text];
-    }
-    else if (this.cells[cell.text]) {
-      delete this.cells[cell.text];
-    }
-    if (!cell.setAttribute) {
-      delete cell;
-      cell = this.queue[this.queueIndex] = this.makeCell();
-    }
-    cell.setAttribute("class", "off");
-    cell.theText.nodeValue = "";
-    cell.theHeaderText.nodeValue = "";
-    cell.style.left = (x * this.cellWidth) + this.cellUnit;
-    cell.style.top = (y * this.cellHeight) + this.cellUnit;
-    if (!text || text === "not") {return cell;}
-    var type = "concept";
-    if (img) {
-      cell.theImg.src = img;
-      cell.theHeaderText.nodeValue = text;
-      cell.theImg.style.width = (width * 0.6 * this.cellWidth) + this.cellUnit;
-      cell.theImg.style.height = (height * 0.6 * this.cellWidth) + this.cellUnit;
-      type = "user";
-    }
-    cell.style.color = "rgb("+color[0]+","+color[1]+
-      ","+color[2]+")";
+  
+  this.ageCells = function() {
+    this.cellPos = (this.cellPos + 1) % cellNum;
+    for(var i = this.cellPos % cellStep; i < cellNum; i += cellStep)
+      this.cellList[i].doAge();
+  }
+  
+  this.checkCell = function(cell, text, img, width, height) {
+    cell.type = "concept";
+    cell.text = text;
     
-    if (text.charAt(0) === '@' && text.indexOf(' ') > 0) {
-      pos = text.indexOf(' ');
-      cell.theHeaderText.nodeValue = text.substring(0, pos);
-      text = text.substring(pos + 1);
-      type = "tweet";
+    if(img && typeof(img) === "string") {
+      cell.type = "user";
+      cell.setImg(img, { width: width * 0.48 + "em", height: height * 0.48 + "em" });
+      cell.theHeaderText.text(text);
+    } else
+      cell.theHeaderText.text("");
+    
+    var tIndex = text.indexOf(" // ");
+    if(tIndex > -1) {
+      cell.type = "tweet";
+      text = text.substring(0, tIndex);
+    }
+    var sIndex = text.indexOf(" ");
+    if(text.charAt(0) === "@" && sIndex > -1) {
+      cell.type = "tweet";
+      cell.theHeaderText.text(text.substring(0, sIndex));
+      text = text.substring(sIndex + 1);
     }
     
-    var fontSize = (height*4) + "pt";
-    if (type === "concept") {
-      cell.theSpan.style.fontSize = fontSize;
-    } else {
-      cell.theSpan.style.fontSize = "inherit";
-    }
-    cell.theText.nodeValue = text;
-    var theclass = "cell new "+type;
-    if (type === "tweet") theclass += " tweet-new";
-    cell.setAttribute("class", theclass);
-    this.cells[text] = cell;
-    return cell;
+    return text;
   }
-
-  this.axisColors = function(vec) {
-    var colorvec = new Array(3);
-    for (var i=0; i<3; i++) {
-      colorvec[i] = constrain(Math.floor(90 + 1000*(vec[i+1] +
-      vec[i+4] + vec[i+7] + vec[i+10] + vec[i+13] + vec[i+16])), 0, 180);
+  
+  this.updateCell = function(info) {
+    var text = info.text;
+    
+    this.ageCells();
+    var cell = this.cellList[this.cellPos];
+    if(!text || text === "not")
+      return cell.doHide();
+    var old = this.cellMap[text], isold = old instanceof jQuery;
+    if(isold)
+      cell = old;
+    else {
+      delete this.cellMap[cell.text];
+      this.cellMap[text] = cell;
     }
-    return colorvec;
-  }
-
-  this.mouseWheel = function(notches) {
+    if(cell.text == null)
+      isold = true;
+    
+    text = this.checkCell(cell, text, info.img, info.width, info.height);
+    cell.theText.css("fontSize", info.height * 3 + "pt").text(text);
+    cell.doShow(info.x * 0.8, info.y * 0.6, axisColors(info.coordinates), isold);
   }
 };
 
-viewer = new SOMViewer();
+cellNum = 500;
+cellStep = 100;
+queueMax = 1000;
+opacMax = 5;
+viewer = new Viewer();
 
-/* Mouse wheel handling */
-wheel = function(event) {
-  if (!event) event = window.event; // IE
-  if (event.wheelDelta) { // IE/Opera
-    delta = event.wheelDelta/120;
-    if (window.opera) delta = -delta;
-  } else if (event.detail) { // Mozilla
-    delta = -event.detail/3;
-  }
-  viewer.mouseWheel(delta);
-  if (event.preventDefault) event.preventDefault();
-  event.returnValue = false;
+function logo(url, title) {
+  document.title = title;
+  display.css("background-image", "url(" + url + ")");
+  background.attr("src", url).load(function() {
+    container.height(background.height()).width(background.width());
+  });
 }
 
-
-/** disabled so we can scroll
-
-if (window.addEventListener)
-  // Mozilla
-  window.addEventListener('DOMMouseScroll', wheel, false);
-// IE or Opera
-window.onmousewheel = document.onmousewheel = wheel;
-*/
-
-// vim:sw=2:ts=2:sts=2:tw=0:
+function start() {
+  logo("twitter.png", "twittermap");
+  for(var i = 0; i < cellNum; i++)
+    viewer.cellList.push(makeCell());
+  $(function() { setInterval("viewer.queueStep()", 0); });
+}

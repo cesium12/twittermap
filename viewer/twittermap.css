@@ -1,67 +1,73 @@
-@import url(http://fonts.googleapis.com/css?family=Tangerine);
-@import url(http://fonts.googleapis.com/css?family=Cantarell);
+@import url(http://fonts.googleapis.com/css?family=Nobile);
 
 body {
-    font-family: "Cantarell", "Gill Sans", "Helvetica", sans-serif;
+    font-family: "Nobile", "Cantarell", "Gill Sans", "Helvetica", sans-serif;
     font-size: 10pt;
     background: cornsilk;
     width: 100%;
     overflow: hidden;
 }
 
-#output {
-    font: bold 20pt "Tangerine", "Helvetica", sans-serif;
-}
-
 .back {
-    position: fixed;
     margin: auto;
+    position: absolute;
     top: 0px;
     left: 0px;
     right: 0px;
     bottom: 0px;
+    z-index: -2;
+    opacity: 0;
+}
+.back img {
+    float: left;
+    opacity: 0.8;
+}
+.back div {
+    height: 100%;
+    width: 0%;
+    opacity: 1;
 }
 
 .cell {
     position: absolute;
     margin: 1px;
-    z-index: 1;
+    z-index: 2;
     height: auto;
+    line-height: 120%;
+    opacity: 0;
 }
 .cell.off     { display: none; }
-.cell.old     { z-index: auto; }
+.cell.old     { z-index: 0; }
 .cell.user    { width: auto; }
 .cell.concept { width: auto; }
 
 .cell:hover {
-    z-index: 3;
+    z-index: 4;
     background-color: #ffe;
     border: 1px solid #aa8;
     margin: 0px;
-}
-.cell.user:hover {
-    background: transparent;
-    border: none;
-    margin: 1px;
+    opacity: 1 !important;
 }
 
 .cell.tweet {
+    background-color: rgba(0, 0, 0, 0.1);
     width: 15em;
     height: auto;
-    z-index: 2;
 }
 .cell.tweet.old {
-    background: #ddd url('comment.png') no-repeat top left;
-    width: 25px;
+    background: transparent url('comment.png') no-repeat top left;
     height: 20px;
-    z-index: -1;
+    width: 24px;
 }
-.cell.tweet.old:hover {
-    background-image: none;
+.cell.tweet:hover {
+    background: #ffe none;
+    height: auto;
+    width: 15em;
 }
 
+.cell .text { line-height: 120%; }
+
 .cell .header {
-    font-size: 80%;
     color: white;
     background-color: #777;
     display: block;
@@ -73,13 +79,9 @@ body {
 .cell.tweet.old       .header { display: none; }
 .cell.tweet.old:hover .header { display: block; }
 
-.cell     .text { text-shadow: #fff 0px 0px 1em, #fff 0px 0px 1em, #fff 0px 0px 1em, #fff 0px 0px 1em, #fff 0px 0px 1em; }
-.cell.old .text { text-shadow: none; }
-
 .cell                 span { margin: 0.5ex; }
 .cell.user            span { display: none; }
 .cell.user:hover      span { display: none; }
-.cell.tweet           span { font-size: 75%; }
 .cell.tweet.old       span { display: none; }
 .cell.tweet.old:hover span { display: inline; }
 

@@ -2,26 +2,17 @@
 <html>
 <head>
   <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
-  <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.js"></script>
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/1/jquery.min.js"></script>
   <script src="/.comsat/static/Orbited.js"></script>
   <script>
     TCPSocket = Orbited.TCPSocket;
-    channel = window.location.search.substring(1);
-    instream = "/topic/" + (channel || "som");
-    stompargs = [ "localhost", 61613, "legacy", "pohgh7Ohf9aeshum" ];
+    channel = "/topic/" + (window.location.search.substring(1) || "som");
   </script>
   <script src="/.comsat/static/protocols/stomp/stomp.js"></script>
-  <script src="/.comsat/static/demos/stomp/shell.js"></script>
   <link rel="stylesheet" href="twittermap.css"/>
-  <title>twittermap</title>
 </head>
 <body>
-  <img src="twitter.png" class="back" />
-  <div id="themap"></div>
-  <div id="output"></div>
   <script src="twittermap.js"></script>
+  <script>start();</script>
 </body>
 </html>
-
-<!-- vim:tw=0:ts=2:sts=2:sw=2:et
- -->
