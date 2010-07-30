@@ -2,11 +2,14 @@ import numpy as np
 from backend.som import SOMBuilder
 
 class SOMFish(SOMBuilder):
+    def __init__(self, fixed, *args, **kwargs):
+        SOMBuilder.__init__(self, *args, **kwargs)
+        self.fixed = fixed
+    
     def handle_vector(self, vec, text):
-        if text == u'#democrat' or text.endswith(u'-#republican'):
-            self.handle_fixed_vector(vec, text, -1, -1)
-        elif text == u'#republican' or text.endswith(u'-#democrat'):
-            self.handle_fixed_vector(vec, text, 1, 1)
+        for eq, end, x, y in self.fixed:
+            if text == eq or text.endswith(end):
+                self.handle_fixed_vector(vec, text, x, y)
         SOMBuilder.handle_vector(self, vec, text, rratio=2, rstep=0.5, sratio=0.5, nbefore=True)
     
     def handle_fixed_vector(self, vec, text, xfactor, yfactor):

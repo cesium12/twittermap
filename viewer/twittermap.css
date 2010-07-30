@@ -92,6 +92,3 @@ body {
 
 .cell       .collapse { display: none; }
 .cell:hover .collapse { display: block; }
-
-.dem { color: #00f; }
-.rep { color: #f00; }

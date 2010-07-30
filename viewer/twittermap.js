@@ -27,7 +27,7 @@ function axisColors(vec) {
       color[i] += vec[j];
     color[i] = Math.min(180, Math.floor(90 + 1000 * color[i]));
   }
-  return color;
+  return "rgb(" + color.join() + ")";
 }
 
 function makeElement(parent, tag, cls) {
@@ -54,7 +54,7 @@ function makeCell() {
   };
   cell.doShow = function(left, top, color, old) {
     var css = { left: left + "em", top: top + "em", opacity: 1 };
-    this.attr("class", "cell new " + this.type).css("color", "rgb(" + color.join() + ")");
+    this.attr("class", "cell new " + this.type).css("color", color);
     if(old)
       this.animate(css, "fast");
     else
@@ -117,7 +117,7 @@ function Viewer() {
     cell.type = "concept";
     cell.text = text;
     
-    if(img && typeof(img) === "string") {
+    if(img) {
       cell.type = "user";
       cell.setImg(img, { width: width * 0.48 + "em", height: height * 0.48 + "em" });
       cell.theHeaderText.text(text);
@@ -153,7 +153,7 @@ function Viewer() {
       delete this.cellMap[cell.text];
       this.cellMap[text] = cell;
     }
-    if(cell.text == null)
+    if(cell.text === null)
       isold = true;
     
     text = this.checkCell(cell, text, info.img, info.width, info.height);
@@ -177,7 +177,6 @@ function logo(url, title) {
 }
 
 function start() {
-  logo("twitter.png", "twittermap");
   for(var i = 0; i < cellNum; i++)
     viewer.cellList.push(makeCell());
   $(function() { setInterval("viewer.queueStep()", 0); });

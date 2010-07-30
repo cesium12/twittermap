@@ -4,9 +4,12 @@
   <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/1/jquery.min.js"></script>
   <script src="/.comsat/static/Orbited.js"></script>
+  <script src="../config"></script>
   <script>
     TCPSocket = Orbited.TCPSocket;
-    channel = "/topic/" + (window.location.search.substring(1) || "vecfish");
+    config = fishes[window.location.search.substring(1) || "rfbf"];
+    channel = config._channel;
+    tags = config._tags;
   </script>
   <script src="/.comsat/static/protocols/stomp/stomp.js"></script>
   <link rel="stylesheet" href="twittermap.css"/>
@@ -14,6 +17,6 @@
 <body>
   <script src="twittermap.js"></script>
   <script src="rfbf.js"></script>
-  <script>start();</script>
+  <script>logo("fish.png", "red fish blue fish"); start();</script>
 </body>
 </html>

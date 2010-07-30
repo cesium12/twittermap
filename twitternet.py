@@ -1,5 +1,8 @@
-import logging, socket, sys, re, numpy, cPickle
-from vectornet import utils
+import logging, socket, sys, re, numpy, pickle
+import TwistedTwitterStream
+from backend.snoc import SocNOC
+from vectornet.utils import ProducingNode, BasicNode
+from secrets import TWITTER_USER, TWITTER_PASSWORD
 
 rootLogger = logging.getLogger('')
 rootLogger.setLevel(25)
@@ -16,17 +19,16 @@ def log(obj, msg): # XXX change to network logging?
         logger.addHandler(handler)
     logger.log(25, '\033[1;31m%s\033[0m: %s' % (obj.node['name'], msg))
 
-class TwitterStream(utils.ProducingNode):
-    'Reads from the Twitter "sample" stream, producing an arbitrary selection of tweets.'
-    
-    def __init__(self, router, nodeDict):
-        utils.ProducingNode.__init__(self, router, nodeDict)
-        self.frame_number = 1
-    
+def make_send(sender, incr=True, keys=True):
+    def _send(data):
+        log(sender, '%s with frame %d' % (data.keys() if keys else data, sender.frame_number))
+        sender.sendMessage({ 'vector' : data, 'frame_number' : sender.frame_number })
+        if incr:
+            sender.frame_number += 1
+    return _send
+
+class TwitterStream(ProducingNode):
     def startProducing(self):
-        from secrets import TWITTER_USER, TWITTER_PASSWORD
-        import TwistedTwitterStream
-        
         class Consumer(TwistedTwitterStream.TweetReceiver):
             def connectionFailed(this, why):
                 log(self, 'connection failed (%s)' % why)
@@ -34,67 +36,13 @@ class TwitterStream(utils.ProducingNode):
                 if 'delete' not in data:
                     log(self, '%s with frame %d' % (data.keys(), self.frame_number))
                     self.sendMessage({ 'vector' : data, 'frame_number' : self.frame_number })
-                    self.frame_number += 1 # XXX might desync with TwitterProcess
-        
+                    self.frame_number += 1
         TwistedTwitterStream.sample(TWITTER_USER, TWITTER_PASSWORD, Consumer())
 
-class TwitterProcess(utils.BasicNode):
-    'Uses SocNOC to apply common-sense data to tweets.'
-    
-    def __init__(self, router, nodeDict):
-        utils.BasicNode.__init__(self, router, nodeDict)
-        self.frame_number = 1
-        
-        from backend.snoc import SocNOC
-        self.snoc = SocNOC()
-        def send(data):
-            log(self, '%s with frame %d' % (data.keys(), self.frame_number))
-            self.sendMessage({ 'vector' : data, 'frame_number' : self.frame_number })
-            self.frame_number += 1
-        self.snoc.send = send
-    
-    def calculatePriority(self, received_frame, current_frame):
-        return received_frame
-    
-    def compute(self, data):
-        for tweet in data.values():
-            self.snoc.receive_tweet(tweet)
-
-class TwitterSom(utils.BasicNode):
-    'Uses SOMBuilder to construct SOMs out of processed tweets.'
-    
-    def __init__(self, router, nodeDict):
-        utils.BasicNode.__init__(self, router, nodeDict)
-        self.frame_number = 1
-        
-        from backend.som import SOMBuilder
-        self.som = SOMBuilder(k=20, map_size=(100, 80))
-        def send(data):
-            log(self, '%s with frame %d' % (data.keys(), self.frame_number))
-            self.sendMessage({ 'vector' : data, 'frame_number' : self.frame_number })
-        self.som.send = send
-    
-    def calculatePriority(self, received_frame, current_frame):
-        return received_frame
-    
-    def compute(self, data):
-        for tweet in data.values():
-            self.som.on_message(tweet)
-        self.frame_number += 1
-
-class TwitterSpecificStream(utils.ProducingNode):
-    'Reads from the Twitter "filter" stream, producing tweets that match given keywords.'
-    
-    def __init__(self, router, nodeDict):
-        utils.ProducingNode.__init__(self, router, nodeDict)
-        self.frame_number = 1
-    
+class SpecificStream(ProducingNode):
     def startProducing(self):
-        from secrets import TWITTER_USER, TWITTER_PASSWORD
-        import TwistedTwitterStream
-        regex = re.compile('|'.join([x.lower() for x in self.node['wl']]), re.I)
-        track = [ x.split(None, 1)[0] for x in self.node['wl'] ]
-        
+        regex = re.compile('|'.join([x.lower() for x in self.node['_topics']]), re.I)
+        track = [ x.split(None, 1)[0] for x in self.node['_topics'] ]
         class Consumer(TwistedTwitterStream.TweetReceiver):
             def connectionFailed(this, why):
                 log(self, 'connection failed (%s)' % why)
@@ -103,73 +51,76 @@ class TwitterSpecificStream(utils.ProducingNode):
                     log(self, '%s with frame %d' % (data.keys(), self.frame_number))
                     self.sendMessage({ 'vector' : data, 'frame_number' : self.frame_number })
                     self.frame_number += 1
-        
         TwistedTwitterStream.filter(TWITTER_USER, TWITTER_PASSWORD, Consumer(), track=track)
 
-class RfbfStream(utils.ProducingNode):
-    'Reads and processes entries from political feeds.'
-    
+class BlogStream(ProducingNode):
     def __init__(self, router, nodeDict):
-        utils.ProducingNode.__init__(self, router, nodeDict)
-        self.frame_number = 1
-        
-        from backend.snoc import SocNOC
-        from backend.utils import weave_streams, local_file
-        self.snoc = SocNOC(k=10, spicefreq=0, cnetfreq=0)
-        with open(local_file('affect.pickle')) as affect_file:
-            self.snoc.categories = {
-                'affect' : cPickle.load(affect_file),
-                'politics' : { '#republican' : 1, '#democrat' : -1 },
-                'person' : { 'person' : 1 }
-            }
-        def send(data):
-            log(self, '%s with frame %d' % (data.keys(), self.frame_number))
-            self.sendMessage({ 'vector' : data, 'frame_number' : self.frame_number })
-            self.frame_number += 1
-        self.snoc.send = send
-        
-        with open(self.node['rfile']) as rfile:
-            rep = [(line.strip(), ' #republican -#democrat') for line in rfile]
-        with open(self.node['dfile']) as dfile:
-            dem = [(line.strip(), ' #democrat -#republican') for line in dfile]
-        def stream():
-            while True:
-                for s in self.snoc.process_feed_list(weave_streams((rep, dem))):
-                    yield s
-        self.stream = stream()
+        ProducingNode.__init__(self, router, nodeDict)
+        from backend.utils import weave_streams, make_tuples
+        self.feeds = weave_streams(make_tuples(*pair) for pair in self.node['_blogs'])
     
-    def compute(self): # XXX not Twisted... maybe should be?
-        self.snoc.process_feed_item(*next(self.stream))
+    def startProducing(self):
+        from twisted.internet import reactor
+        from twisted.web import client
+        from random import random
+        import feedparser
+        send = make_send(self)
+        def read(feed, url, tag):
+            for item in feed['items']:
+                reactor.callLater(random(), send, (SocNOC.process_feed_item(item), tag))
+            reactor.callLater(random(), get, url, tag)
+        def get(url, tag):
+            client.getPage(url).addCallback(feedparser.parse).addCallback(read, url, tag)
+        for feed in self.feeds:
+            get(*feed)
 
-class RfbfSom(utils.BasicNode):
-    'Constructs SOMs out of RFBF items.'
-    
+class TwitterProcess(BasicNode):
     def __init__(self, router, nodeDict):
-        utils.BasicNode.__init__(self, router, nodeDict)
-        self.frame_number = 1
-        
-        from backend.somfish import SOMFish
-        self.som = SOMFish(k=10, map_size=(80, 60))
-        def send(data):
-            log(self, '%s with frame %d' % (data.keys(), self.frame_number))
-            self.sendMessage({ 'vector' : data, 'frame_number' : self.frame_number })
-        self.som.send = send
+        BasicNode.__init__(self, router, nodeDict)
+        self.snoc = SocNOC()
+        self.snoc.send = make_send(self)
     
-    def calculatePriority(self, received_frame, current_frame):
-        return received_frame
+    def compute(self, data):
+        for tweet in data.values():
+            self.snoc.receive_tweet(tweet)
+
+class BlogProcess(BasicNode):
+    def __init__(self, router, nodeDict):
+        ProducingNode.__init__(self, router, nodeDict)
+        self.snoc = SocNOC(k=10, spicefreq=0, cnetfreq=0)
+        self.snoc.send = make_send(self)
+        with open('backend/affect.pickle') as affect_file:
+            self.snoc.categories = dict(self.node['_categories'], affect=pickle.load(affect_file))
     
     def compute(self, data):
         for datum in data.values():
-            self.som.on_message(datum)
+            self.snoc.process_feed_item(*datum)
+
+class TwitterSom(BasicNode):
+    def __init__(self, router, nodeDict):
+        BasicNode.__init__(self, router, nodeDict)
+        from backend.som import SOMBuilder
+        self.som = SOMBuilder(k=20, map_size=(100, 80))
+        self.som.send = make_send(self, incr=False)
+    
+    def compute(self, data):
+        for tweet in data.values():
+            self.som.on_message(tweet)
         self.frame_number += 1
 
-class RfbfVec(utils.BasicNode):
-    'Does math to position concepts on a plane.'
-    
+class RfbfSom(BasicNode):
     def __init__(self, router, nodeDict):
-        utils.BasicNode.__init__(self, router, nodeDict)
-        self.frame_number = 1
+        BasicNode.__init__(self, router, nodeDict)
+        from backend.somfish import SOMFish
+        self.som = SOMFish(self.node['_fixed'], k=10, map_size=(80, 60))
+        self.som.send = make_send(self, incr=False)
     
+    def compute(self, data):
+        for tweet in data.values():
+            self.som.on_message(tweet)
+        self.frame_number += 1
+
+class RfbfVec(BasicNode):
     @staticmethod
     def orthogonalize(vec1, vec2):
         return vec2 - vec1 * numpy.vdot(vec1, vec2) / numpy.vdot(vec1, vec1)
@@ -180,9 +131,6 @@ class RfbfVec(utils.BasicNode):
         for k, v in dct.items():
             ret[k] = numpy.array(v)[1:]
         return ret
-    
-    def calculatePriority(self, received_frame, current_frame):
-        return received_frame
     
     def compute(self, data):
         for datum in data.values():

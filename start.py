@@ -1,34 +1,36 @@
 #!/usr/bin/env python
-import sys, socket
-from IPython.kernel import client
+import sys, socket, IPython.kernel.client
 from secrets import MEC_OPTIONS
-mec = client.MultiEngineClient(*MEC_OPTIONS)
-mec.activate()
+mec = IPython.kernel.client.MultiEngineClient(*MEC_OPTIONS)
+config = dict()
+execfile('config', config, config)
 
-specific = {
-    'bank' : ['bofa', 'bank of america', 'merrill lynch', 'ken lewis', 'brian moynihan', 'greg curl', '%23boa', 'power rewards', 'bankamericard'],
-    'otherbank' : ['chase bank', 'jpmorgan', 'jpmorgan chase', 'citi', 'citibank', 'wells', 'wellsfargo', 'gmac', 'hsbc', 'goldman', 'goldman sachs', 'capital one', 'cap one', 'amex', 'american express', 'morgan stanley'],
-    'bt' : ['BT Group', 'BT pic', 'British Telecom', 'BT Broadband', 'BT Home hub', 'BTCares', 'Home hub'],
-    'gillette' : ['Gillette ProGlide', 'ProGlide'],
-    'tech' : ['bestbuy', 'twelpforce', 'geeksquad', 'laptop', 'iphone', 'android', 'windows', 'linux', 'mac', 'leopard', 'ubuntu', 'python', 'ruby', 'java', 'django', 'rails', 'lappy', 'netbook', 'pc', 'webcam', 'google', 'ipad']
-}
+tstream = dict(name='stream',  consumesFrom=None,        classType='twitternet.TwitterStream')
+sstream = dict(name='stream',  consumesFrom=None,        classType='twitternet.SpecificStream') # topics
+bstream = dict(name='stream',  consumesFrom=None,        classType='twitternet.BlogStream') # blogs
+tproc   = dict(name='process', consumesFrom=['stream'],  classType='twitternet.TwitterProcess')
+bproc   = dict(name='process', consumesFrom=['stream'],  classType='twitternet.BlogProcess') # categories
+tsom    = dict(name='som',     consumesFrom=['process'], classType='twitternet.TwitterSom')
+rsom    = dict(name='som',     consumesFrom=['process'], classType='twitternet.RfbfSom') # fixed
+rvec    = dict(name='vec',     consumesFrom=['process'], classType='twitternet.RfbfVec')
 
-som =     dict(name='som',     consumesFrom=['process'], classType='twitternet.TwitterSom')
-process = dict(name='process', consumesFrom=['stream'],  classType='twitternet.TwitterProcess')
-stream =  dict(name='stream',  consumesFrom=None,        classType='twitternet.TwitterStream')
-sstream = dict(name='stream',  consumesFrom=None,        classType='twitternet.TwitterSpecificStream')
-vecfish = dict(name='vecfish', consumesFrom=['fish'],    classType='twitternet.RfbfVec')
-somfish = dict(name='somfish', consumesFrom=['fish'],    classType='twitternet.RfbfSom')
-fish =    dict(name='fish',    consumesFrom=None,        classType='twitternet.RfbfStream')
-
-try:
-    name = sys.argv[1]
-    if name == 'rfbf':
-        localNodes = [ dict(vecfish), dict(somfish), dict(fish, rfile='backend/repubs.txt', dfile='backend/dems.txt') ]
+localNodes = []
+for i, name in enumerate(sys.argv[1:] or [None]):
+    def disamb(node, **kwargs):
+        d = lambda s: s + str(i)
+        return dict(node, name=d(node['name']), consumesFrom=map(d, node['consumesFrom'] or []) or None, **kwargs)
+    if name in config['fishes']:
+        info = config['fishes'][name]
+        if 'blogs' in info:
+            localNodes += [ disamb(rvec), disamb(rsom, **info), disamb(bproc, **info), disamb(bstream, **info) ]
+        elif 'topics' in info:
+            localNodes += [ disamb(rvec), disamb(rsom, **info), disamb(tproc), disamb(sstream, **info) ]
+        else:
+            localNodes += [ disamb(rvec), disamb(rsom, **info), disamb(tproc), disamb(tstream) ]
+    elif name in config['twitter']:
+        localNodes += [ disamb(tsom), disamb(tproc), disamb(sstream, topics=config['twitter'][name]) ]
     else:
-        localNodes = [ dict(som), dict(process), dict(sstream, wl=specific[name]) ]
-except LookupError:
-    localNodes = [ dict(som), dict(process), dict(stream) ]
+        localNodes += [ disamb(tsom), disamb(tproc), disamb(tstream) ]
 
 graph = {
     socket.gethostname() : {
@@ -36,7 +38,8 @@ graph = {
         'localNodes' : localNodes
     }
 }
-mec.push({ 'graph' : graph })
-mec.execute('from vectornet import router')
-mec.execute("__import__('os').environ['DJANGO_SETTINGS_MODULE'] = 'vectornet.settings'")
-mec.execute('router.startNetwork(graph)')
+mec.activate()
+mec.push(dict(graph=graph))
+mec.execute('import os, vectornet.router')
+mec.execute("os.environ['DJANGO_SETTINGS_MODULE'] = 'vectornet.settings'")
+mec.execute('vectornet.router.startNetwork(graph)')

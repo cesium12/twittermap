@@ -27,12 +27,14 @@ class SocNOC(object):
     
     def process_labeled_feed(self, feeds):
         for current, word in self.process_feed_list(feeds):
-            self.process_feed_item(current, word)
+            self.process_post(self.process_feed_item(current), word)
     
-    def process_feed_list(self, feeds):
+    @staticmethod
+    def process_feed_list(feeds):
         return utils.weave_streams(utils.make_tuples(feedparser.parse(x)['items'], y) for (x, y) in feeds)
     
-    def process_feed_item(self, current, word=None):
+    @staticmethod
+    def process_feed_item(current):
         text = current.get('content', current.get('summary', None))
         if text is None:
             return
@@ -40,7 +42,7 @@ class SocNOC(object):
             text = text[0]
         if isinstance(text, dict):
             text = text['value']
-        self.process_post(utils.strip_tags(text).strip(), word)
+        return utils.strip_tags(text).strip()
     
     def process_post(self, post, word=None):
         for text in tokenizer.tokenize(post):
