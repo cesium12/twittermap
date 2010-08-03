@@ -14,7 +14,7 @@ onload = function() {
     if(frame.body.toString().substring(1, 8) !== "MESSAGE")
       viewer.handleMessage(jQuery.parseJSON(frame.body.toString()).data.vector);
   };
-  stomp.connect("localhost", 61613, "legacy", "pohgh7Ohf9aeshum");
+  stomp.connect.apply(stomp, stompargs);
 };
 onunload = function() {
   stomp.reset();

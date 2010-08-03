@@ -64,12 +64,12 @@ class BlogStream(ProducingNode):
         def read(feed, url, tag):
             try:
                 send(dict(post=SocNOC.process_feed_item(next(feed)), word=tag))
-            except StopIteration:
+            except (TypeError, StopIteration):
                 reactor.callLater(random(), get, url, tag)
             else:
                 reactor.callLater(random(), read, feed, url, tag)
         def get(url, tag):
-            client.getPage(url).addCallback(feedparser.parse).addCallback(lambda feed: iter(feed['items'])).addCallback(read, url, tag)
+            client.getPage(url).addCallback(feedparser.parse).addCallback(lambda feed: iter(feed['items'])).addBoth(read, url, tag)
         for feed in self.feeds:
             get(*feed)
 
