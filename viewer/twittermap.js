@@ -12,7 +12,7 @@ onload = function() {
   stomp.onconnectedframe = function()      { container.animate({ opacity: 0.3 }, "slow"); };
   stomp.onmessageframe   = function(frame) {
     if(frame.body.toString().substring(1, 8) !== "MESSAGE")
-      viewer.handleMessage(jQuery.parseJSON(frame.body.toString()).data.vector);
+      viewer.handleMessage(jQuery.parseJSON(frame.body.toString()));
   };
   stomp.connect.apply(stomp, stompargs);
 };

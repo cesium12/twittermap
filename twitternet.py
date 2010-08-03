@@ -20,7 +20,7 @@ def log(obj, msg):
 def make_send(sender, keys=True):
     def _send(data):
         log(sender, data.keys() if keys else data)
-        sender.sendMessage({ 'vector' : data, 'frame_number' : sender.frame_number })
+        sender.sendMessage(data)
     return _send
 
 class TwitterStream(ProducingNode):
