@@ -43,8 +43,6 @@ function updateCell(info) {
   cell.doShow((1 + info.x) / 2, (1 - info.y) / 2, info.size * 100, text, color, isold);
 }
 
-cellNum = 400;
-
 function start(url, title) {
   logo(url, title);
   viewer.updateCell = updateCell;

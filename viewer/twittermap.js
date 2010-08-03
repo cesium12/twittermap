@@ -162,7 +162,7 @@ function Viewer() {
   }
 };
 
-cellNum = 500;
+cellNum = 400;
 cellStep = 50;
 queueMax = 1000;
 opacMax = 5;

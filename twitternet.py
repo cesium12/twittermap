@@ -17,12 +17,10 @@ def log(obj, msg):
         logger.addHandler(handler)
     logger.log(25, '\033[1;31m%s\033[0m: %s' % (obj.node['name'], msg))
 
-def make_send(sender, incr=True, keys=True):
+def make_send(sender, keys=True):
     def _send(data):
-        log(sender, '%s with frame %d' % (data.keys() if keys else data, sender.frame_number))
+        log(sender, data.keys() if keys else data)
         sender.sendMessage({ 'vector' : data, 'frame_number' : sender.frame_number })
-        if incr:
-            sender.frame_number += 1
     return _send
 
 class TwitterStream(ProducingNode):
@@ -111,29 +109,27 @@ class TwitterSom(BasicNode):
         BasicNode.__init__(self, router, nodeDict)
         from backend.som import SOMBuilder
         self.som = SOMBuilder(k=20, map_size=tuple(self.node['_somsize']))
-        self.som.send = make_send(self, incr=False)
+        self.som.send = make_send(self)
     
     def compute(self, data):
         for tweet in data.values():
             self.som.on_message(tweet)
-        self.frame_number += 1
 
 class RfbfSom(BasicNode):
     def __init__(self, router, nodeDict):
         BasicNode.__init__(self, router, nodeDict)
         from backend.somfish import SOMFish
         self.som = SOMFish(self.node['_fixed'], k=10, map_size=tuple(self.node['_somsize']))
-        self.som.send = make_send(self, incr=False)
+        self.som.send = make_send(self)
     
     def compute(self, data):
         for tweet in data.values():
             self.som.on_message(tweet)
-        self.frame_number += 1
 
 class RfbfVec(BasicNode):
     def __init__(self, router, nodeDict):
         BasicNode.__init__(self, router, nodeDict)
-        self.send = make_send(self, incr=False)
+        self.send = make_send(self)
     
     @staticmethod
     def orthogonalize(vec1, vec2):
@@ -159,8 +155,8 @@ class RfbfVec(BasicNode):
                 concepts.pop('empty', None) # ignore 'empty' concept if it exists
                 for con, vec in concepts.items():
                     vnorm = numpy.linalg.norm(vec)
-                    data = dict(concept=con, text=text, size=float(numpy.sqrt(numpy.sqrt(vnorm))),
-                                x=float(numpy.vdot(politics, vec) / pnorm / vnorm),
-                                y=float(numpy.vdot(affect, vec) / anorm / vnorm))
-                    self.send(data)
-        self.frame_number += 1
+                    self.send({ 'concept' : con,
+                                'text'    : text,
+                                'size'    : float(numpy.sqrt(numpy.sqrt(vnorm))),
+                                'x'       : float(numpy.vdot(politics, vec) / pnorm / vnorm),
+                                'y'       : float(numpy.vdot(affect, vec) / anorm / vnorm) })
