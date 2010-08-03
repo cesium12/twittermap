@@ -7,9 +7,10 @@
   <script src="../config"></script>
   <script>
     TCPSocket = Orbited.TCPSocket;
-    config = fishes[window.location.search.substring(1) || "rfbf"];
-    channel = config._channel;
-    tags = config._tags;
+    _subj = window.location.search.substring(1) || "rfbf";
+    channel = "/topic/" + _subj + "vec";
+    _fish = fishes[_subj];
+    tags = _fish._tags;
   </script>
   <script src="/.comsat/static/protocols/stomp/stomp.js"></script>
   <link rel="stylesheet" href="twittermap.css"/>
@@ -17,6 +18,6 @@
 <body>
   <script src="twittermap.js"></script>
   <script src="rfbf.js"></script>
-  <script>logo("fish.png", "red fish blue fish"); start();</script>
+  <script>$(function() { start(_fish._image, _fish._title); });</script>
 </body>
 </html>

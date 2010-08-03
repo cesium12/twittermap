@@ -1,10 +1,9 @@
 @import url(http://fonts.googleapis.com/css?family=Nobile);
 
+html, body, .map { height: 100%; }
 body {
     font-family: "Nobile", "Cantarell", "Gill Sans", "Helvetica", sans-serif;
-    font-size: 10pt;
     background: cornsilk;
-    width: 100%;
     overflow: hidden;
 }
 
@@ -32,14 +31,14 @@ body {
     position: absolute;
     margin: 1px;
     z-index: 2;
+    width: auto;
     height: auto;
-    line-height: 120%;
+    line-height: 0px;
     opacity: 0;
 }
 .cell.off     { display: none; }
 .cell.old     { z-index: 0; }
-.cell.user    { width: auto; }
-.cell.concept { width: auto; }
+.cell.concept { padding: 2pt; }
 
 .cell:hover {
     z-index: 4;
@@ -65,30 +64,27 @@ body {
     width: 15em;
 }
 
-.cell .text { line-height: 120%; }
+.cell *           { line-height: 120%; }
+.cell .header     { color: white; background-color: #777; }
+.cell .collapse   { max-width: 36em; }
+.cell.tweet .text { text-align: left !important; }
 
-.cell .header {
-    color: white;
-    background-color: #777;
-    display: block;
-}
-.cell.old             .header { display: none; }
-.cell.user            .header { display: none; }
-.cell.user:hover      .header { display: none; }
-.cell.tweet:hover     .header { display: block; }
-.cell.tweet.old       .header { display: none; }
-.cell.tweet.old:hover .header { display: block; }
+.cell                 .header   { display: block;  }
+.cell.old             .header   { display: none;   }
+.cell.user            .header   { display: none;   }
+.cell.tweet.old       .header   { display: none;   }
+.cell.tweet:hover     .header   { display: block;  }
 
-.cell                 span { margin: 0.5ex; }
-.cell.user            span { display: none; }
-.cell.user:hover      span { display: none; }
-.cell.tweet.old       span { display: none; }
-.cell.tweet.old:hover span { display: inline; }
+.cell                 .text     { display: block;  }
 
-.cell         img { 0.5ex 0.5ex 0ex 0.5ex; }
-.cell.user    img { display: inline; }
-.cell.concept img { display: none; }
-.cell.tweet   img { display: none; }
+.cell.user            span      { display: none;   }
+.cell.user:hover      span      { display: none;   }
+.cell.tweet.old       span      { display: none;   }
+.cell.tweet.old:hover span      { display: inline; }
 
-.cell       .collapse { display: none; }
-.cell:hover .collapse { display: block; }
+.cell.user            img       { display: inline; }
+.cell.concept         img       { display: none;   }
+.cell.tweet           img       { display: none;   }
+
+.cell                 .collapse { display: none;   }
+.cell:hover           .collapse { display: block;  }

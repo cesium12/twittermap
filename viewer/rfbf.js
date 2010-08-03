@@ -23,7 +23,7 @@ function updateCell(info) {
   else {
     delete this.cellMap[cell.text];
     this.cellMap[text] = cell;
-    cell.theSubtext.text("");
+    cell.theSubtext.html("");
   }
   if(cell.text == null)
     isold = true;
@@ -36,17 +36,19 @@ function updateCell(info) {
     else if(text.indexOf(spacetag) > -1)
       color = tags[i][2];
     if(cell.type === "concept" && info.text.indexOf(spacetag) > 0)
-      $(cell.theSubtext[i]).text(tags[i][3] + info.text.split(" // ", 1)[0]);
+      $(cell.theSubtext[i]).html(tags[i][3] + info.text.split(" // ", 1)[0]);
   }
-  text = this.checkCell(cell, text, image, 8, 8);
   
-  cell.theText.css("fontSize", info.size * 100 + "pt").text(text);
-  cell.doShow((1 + info.x) * 40, (1 - info.y) * 20, color, isold);
+  text = this.checkCell(cell, text, image, 8, 8);
+  cell.doShow((1 + info.x) / 2, (1 - info.y) / 2, info.size * 100, text, color, isold);
 }
 
-function start() {
+cellNum = 400;
+
+function start(url, title) {
+  logo(url, title);
   viewer.updateCell = updateCell;
   for(var i = 0; i < cellNum; i++)
     viewer.cellList.push(makeRfbfCell());
-  $(function() { setInterval("viewer.queueStep()", 0); });
+  setInterval("viewer.queueStep()", 0);
 }

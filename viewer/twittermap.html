@@ -4,15 +4,17 @@
   <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/1/jquery.min.js"></script>
   <script src="/.comsat/static/Orbited.js"></script>
+  <script src="../config"></script>
   <script>
     TCPSocket = Orbited.TCPSocket;
-    channel = "/topic/" + (window.location.search.substring(1) || "som");
+    _subj = window.location.search.substring(1) || "twitter";
+    channel = "/topic/" + _subj + "som";
   </script>
   <script src="/.comsat/static/protocols/stomp/stomp.js"></script>
   <link rel="stylesheet" href="twittermap.css"/>
 </head>
 <body>
   <script src="twittermap.js"></script>
-  <script>logo("twitter.png", "twittermap"); start();</script>
+  <script>$(function() { start("twitter.png", "twittermap"); });</script>
 </body>
 </html>

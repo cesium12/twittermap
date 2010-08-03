@@ -1,4 +1,4 @@
-map = $("<div></div>").appendTo("body");
+map = $("<div></div>").attr("class", "map").appendTo("body");
 container = $("<div></div>").attr("class", "back").appendTo("body");
 background = $("<img></img>").appendTo(container);
 display = $("<div></div>").appendTo(container);
@@ -52,13 +52,14 @@ function makeCell() {
       this.text = null;
     }
   };
-  cell.doShow = function(left, top, color, old) {
-    var css = { left: left + "em", top: top + "em", opacity: 1 };
-    this.attr("class", "cell new " + this.type).css("color", color);
-    if(old)
-      this.animate(css, "fast");
-    else
-      this.css(css);
+  cell.doShow = function(x, y, font, text, color, old) {
+    var move = { opacity: 1 }, change = { color: color };
+    if(x < 0.5) { move.left   = 100 * x       + "%"; change.right  = ""; this.theText.css("text-align", "left"); }
+    else        { move.right  = 100 * (1 - x) + "%"; change.left   = ""; this.theText.css("text-align", "right"); }
+    if(y < 0.5) { move.top    = 100 * y       + "%"; change.bottom = ""; this.theText.insertAfter(this.theHeaderText); }
+    else        { move.bottom = 100 * (1 - y) + "%"; change.top    = ""; this.theText.appendTo(this); }
+    this.stop(true).attr("class", "cell new " + this.type).animate(move, old ? "fast" : 0).css(change);
+    this.theText.css("fontSize", font + "pt").html(text);
     this.opacity = opacMax;
   }
   cell.doAge = function() {
@@ -70,7 +71,7 @@ function makeCell() {
       this.doHide();
   };
   
-  cell.offset({ left: $(document).width() / 2, top: $(document).height() / 2 });
+  cell.css({ left: "50%", top: "50%", right: "50%", bottom: "50%" });
   return cell;
 }
 
@@ -119,10 +120,10 @@ function Viewer() {
     
     if(img) {
       cell.type = "user";
-      cell.setImg(img, { width: width * 0.48 + "em", height: height * 0.48 + "em" });
-      cell.theHeaderText.text(text);
+      cell.setImg(img, { width: width * 12 + "px", height: height * 12 + "px" });
+      cell.theHeaderText.html(text);
     } else
-      cell.theHeaderText.text("");
+      cell.theHeaderText.html("");
     
     var tIndex = text.indexOf(" // ");
     if(tIndex > -1) {
@@ -132,7 +133,7 @@ function Viewer() {
     var sIndex = text.indexOf(" ");
     if(text.charAt(0) === "@" && sIndex > -1) {
       cell.type = "tweet";
-      cell.theHeaderText.text(text.substring(0, sIndex));
+      cell.theHeaderText.html(text.substring(0, sIndex));
       text = text.substring(sIndex + 1);
     }
     
@@ -157,13 +158,12 @@ function Viewer() {
       isold = true;
     
     text = this.checkCell(cell, text, info.img, info.width, info.height);
-    cell.theText.css("fontSize", info.height * 3 + "pt").text(text);
-    cell.doShow(info.x * 0.8, info.y * 0.6, axisColors(info.coordinates), isold);
+    cell.doShow(info.x / somsize[0], info.y / somsize[1], info.height * 3, text, axisColors(info.coordinates), isold);
   }
 };
 
 cellNum = 500;
-cellStep = 100;
+cellStep = 50;
 queueMax = 1000;
 opacMax = 5;
 viewer = new Viewer();
@@ -176,8 +176,9 @@ function logo(url, title) {
   });
 }
 
-function start() {
+function start(url, title) {
+  logo(url, title);
   for(var i = 0; i < cellNum; i++)
     viewer.cellList.push(makeCell());
-  $(function() { setInterval("viewer.queueStep()", 0); });
+  setInterval("viewer.queueStep()", 0);
 }

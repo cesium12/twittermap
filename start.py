@@ -5,30 +5,30 @@ mec = IPython.kernel.client.MultiEngineClient(*MEC_OPTIONS)
 config = dict()
 execfile('config', config, config)
 
-tstream = dict(name='stream',  consumesFrom=None,        classType='twitternet.TwitterStream')
-sstream = dict(name='stream',  consumesFrom=None,        classType='twitternet.SpecificStream') # topics
-bstream = dict(name='stream',  consumesFrom=None,        classType='twitternet.BlogStream') # blogs
+tstream = dict(name='stream',  consumesFrom=[],          classType='twitternet.TwitterStream')
+sstream = dict(name='stream',  consumesFrom=[],          classType='twitternet.SpecificStream')
+bstream = dict(name='stream',  consumesFrom=[],          classType='twitternet.BlogStream')
 tproc   = dict(name='process', consumesFrom=['stream'],  classType='twitternet.TwitterProcess')
-bproc   = dict(name='process', consumesFrom=['stream'],  classType='twitternet.BlogProcess') # categories
-tsom    = dict(name='som',     consumesFrom=['process'], classType='twitternet.TwitterSom')
-rsom    = dict(name='som',     consumesFrom=['process'], classType='twitternet.RfbfSom') # fixed
+bproc   = dict(name='process', consumesFrom=['stream'],  classType='twitternet.BlogProcess')
+tsom    = dict(name='som',     consumesFrom=['process'], classType='twitternet.TwitterSom', _somsize=config['somsize'])
+rsom    = dict(name='som',     consumesFrom=['process'], classType='twitternet.RfbfSom',    _somsize=config['somsize'])
 rvec    = dict(name='vec',     consumesFrom=['process'], classType='twitternet.RfbfVec')
 
 localNodes = []
-for i, name in enumerate(sys.argv[1:] or [None]):
+for name in set(sys.argv[1:] or ['twitter']):
     def disamb(node, **kwargs):
-        d = lambda s: s + str(i)
-        return dict(node, name=d(node['name']), consumesFrom=map(d, node['consumesFrom'] or []) or None, **kwargs)
+        d = lambda s: name + s
+        return dict(node, name=d(node['name']), consumesFrom=map(d, node['consumesFrom']), **kwargs)
     if name in config['fishes']:
         info = config['fishes'][name]
-        if 'blogs' in info:
-            localNodes += [ disamb(rvec), disamb(rsom, **info), disamb(bproc, **info), disamb(bstream, **info) ]
-        elif 'topics' in info:
-            localNodes += [ disamb(rvec), disamb(rsom, **info), disamb(tproc), disamb(sstream, **info) ]
-        else:
-            localNodes += [ disamb(rvec), disamb(rsom, **info), disamb(tproc), disamb(tstream) ]
+        newNodes = [ rvec, tproc, tstream ]
+        if '_blogs' in info:
+            newNodes[-2:] = [ bproc, bstream ]
+        elif '_topics' in info:
+            newNodes[-1:] = [ sstream ]
+        localNodes += [ disamb(node, **info) for node in newNodes ]
     elif name in config['twitter']:
-        localNodes += [ disamb(tsom), disamb(tproc), disamb(sstream, topics=config['twitter'][name]) ]
+        localNodes += [ disamb(tsom), disamb(tproc), disamb(sstream, _topics=config['twitter'][name]) ]
     else:
         localNodes += [ disamb(tsom), disamb(tproc), disamb(tstream) ]
 
