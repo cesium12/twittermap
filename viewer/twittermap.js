@@ -61,7 +61,7 @@ function makeCell() {
     this.stop(true).attr("class", "cell new " + this.type).animate(move, old ? "fast" : 0).css(change);
     this.theText.css("fontSize", font + "pt").html(text);
     this.opacity = opacMax;
-  }
+  };
   cell.doAge = function() {
     if(this.opacity > 1) {
       if(this.opacity == opacMax)

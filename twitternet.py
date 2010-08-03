@@ -63,13 +63,20 @@ class BlogStream(ProducingNode):
         send = make_send(self)
         def read(feed, url, tag):
             try:
-                send(dict(post=SocNOC.process_feed_item(next(feed)), word=tag))
-            except (TypeError, StopIteration):
+                item = next(feed)
+            except StopIteration:
                 reactor.callLater(random(), get, url, tag)
             else:
+                post = SocNOC.process_feed_item(item)
+                if isinstance(post, basestring):
+                    send(dict(post=post, word=tag))
                 reactor.callLater(random(), read, feed, url, tag)
         def get(url, tag):
-            client.getPage(url).addCallback(feedparser.parse).addCallback(lambda feed: iter(feed['items'])).addBoth(read, url, tag)
+            ( client.getPage(url)
+                    .addCallback(feedparser.parse)
+                    .addCallback(lambda feed: iter(feed['items']))
+                    .addCallback(read, url, tag)
+                    .addErrback(lambda err: get(url, tag)) )
         for feed in self.feeds:
             get(*feed)
 
@@ -97,10 +104,7 @@ class BlogProcess(BasicNode):
     
     def compute(self, data):
         for datum in data.values():
-            try:
-                self.snoc.process_post(**datum)
-            except TypeError: # ???
-                pass
+            self.snoc.process_post(**datum)
 
 class TwitterSom(BasicNode):
     def __init__(self, router, nodeDict):

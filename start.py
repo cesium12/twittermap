@@ -21,11 +21,11 @@ for name in set(sys.argv[1:] or ['twitter']):
         return dict(node, name=d(node['name']), consumesFrom=map(d, node['consumesFrom']), **kwargs)
     if name in config['fishes']:
         info = config['fishes'][name]
-        newNodes = [ rvec, tproc, tstream ]
+        newNodes = [ rvec,    tproc, tstream ]
         if '_blogs' in info:
             newNodes[-2:] = [ bproc, bstream ]
         elif '_topics' in info:
-            newNodes[-1:] = [ sstream ]
+            newNodes[-1:] = [        sstream ]
         localNodes += [ disamb(node, **info) for node in newNodes ]
     elif name in config['twitter']:
         localNodes += [ disamb(tsom), disamb(tproc), disamb(sstream, _topics=config['twitter'][name]) ]
