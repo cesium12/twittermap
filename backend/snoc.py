@@ -49,11 +49,11 @@ class SocNOC(object):
             if text:
                 self.ccipca_iter('%s // %s' % (text, word), text, extras=word)
     
-    def receive_tweet(self, tweetdict):
-        user = '@' + tweetdict['user']['screen_name']
-        text = user + ' ' + utils.strip_tags(tweetdict['text'])
+    def receive_tweet(self, tweet, word=None):
+        user = '@' + tweet['user']['screen_name']
+        text = user + ' ' + utils.strip_tags(tweet['text'])
         if not self.filters or any( filt in text.lower() for filt in self.filters ):
-            self.ccipca_iter(text, text)
+            self.ccipca_iter(text, text, extras=word)
     
     def ccipca_iter(self, text, baretext, extras=None):
         assertion = utils.make_twit_vec(baretext, extras=extras)

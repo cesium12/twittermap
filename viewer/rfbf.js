@@ -7,7 +7,7 @@ function makeRfbfCell() {
 }
 
 function updateCell(info) {
-  var text = info.concept, color = eval(_color, info);
+  var text = info.concept, x = info.x, y = info.y, color = eval(_color);
   
   this.ageCells();
   var cell = this.cellList[this.cellPos];

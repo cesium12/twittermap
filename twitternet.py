@@ -43,21 +43,24 @@ class TwitterStream(ProducingNode):
                 log(self, 'connection failed (%s)' % why)
             def tweetReceived(this, data):
                 if 'delete' not in data:
-                    send(data)
+                    send(dict(tweet=data))
         TwistedTwitterStream.sample(TWITTER_USER, TWITTER_PASSWORD, Consumer())
 
 class SpecificStream(ProducingNode):
     def startProducing(self):
         send = make_send(self)
-        regex = re.compile('|'.join([x.lower() for x in self.node['_topics']]), re.I)
-        track = [ x.split(None, 1)[0] for x in self.node['_topics'] ]
         class Consumer(TwistedTwitterStream.TweetReceiver):
+            def __init__(self, terms, tag):
+                self.regex = re.compile('|'.join( x.lower() for x in terms ), re.I)
+                self.tag = tag
+                TwistedTwitterStream.TweetReceiver.__init__(self)
             def connectionFailed(this, why):
                 log(self, 'connection failed (%s)' % why)
             def tweetReceived(this, data):
-                if 'delete' not in data and data['user'] and regex.search(data['text']):
-                    send(data)
-        TwistedTwitterStream.filter(TWITTER_USER, TWITTER_PASSWORD, Consumer(), track=track)
+                if 'delete' not in data and data['user'] and self.regex.search(data['text']):
+                    send(dict(tweet=data, word=self.tag))
+        for item in self.node['_topics']:
+            TwistedTwitterStream.filter(TWITTER_USER, TWITTER_PASSWORD, Consumer(*item), track=[ x.split(None, 1)[0] for x in item[0] ])
 
 class BlogStream(ProducingNode):
     def __init__(self, router, nodeDict):
@@ -100,7 +103,7 @@ class TwitterProcess(OneToOneNode):
                 self.snoc.categories = dict(self.node['_categories'], affect=pickle.load(affect_file))
     
     def compute(self, data):
-        self.snoc.receive_tweet(data)
+        self.snoc.receive_tweet(**data)
 
 class BlogProcess(OneToOneNode):
     def __init__(self, router, nodeDict):

@@ -10,6 +10,9 @@ body {
     width: 100%;
     position: relative;
 }
+canvas, .back {
+    opacity: 0;
+}
 .back {
     margin: auto;
     position: absolute;
@@ -18,7 +21,6 @@ body {
     right: 0%;
     bottom: 20%;
     z-index: -2;
-    opacity: 0;
 }
 .back img {
     float: left;
