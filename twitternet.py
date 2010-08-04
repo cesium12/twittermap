@@ -50,15 +50,15 @@ class SpecificStream(ProducingNode):
     def startProducing(self):
         send = make_send(self)
         class Consumer(TwistedTwitterStream.TweetReceiver):
-            def __init__(self, terms, tag):
-                self.regex = re.compile('|'.join( x.lower() for x in terms ), re.I)
-                self.tag = tag
-                TwistedTwitterStream.TweetReceiver.__init__(self)
+            def __init__(this, terms, tag):
+                this._regex = re.compile('|'.join( x.lower() for x in terms ), re.I)
+                this._tag = tag
+                TwistedTwitterStream.TweetReceiver.__init__(this)
             def connectionFailed(this, why):
                 log(self, 'connection failed (%s)' % why)
             def tweetReceived(this, data):
-                if 'delete' not in data and data['user'] and self.regex.search(data['text']):
-                    send(dict(tweet=data, word=self.tag))
+                if 'delete' not in data and data['user']: # and self.regex.search(data['text']):
+                    send(dict(tweet=data, word=this._tag))
         for item in self.node['_topics']:
             TwistedTwitterStream.filter(TWITTER_USER, TWITTER_PASSWORD, Consumer(*item), track=[ x.split(None, 1)[0] for x in item[0] ])
 

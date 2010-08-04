@@ -3,7 +3,7 @@ import sys, socket, IPython.kernel.client
 from secrets import MEC_OPTIONS
 mec = IPython.kernel.client.MultiEngineClient(*MEC_OPTIONS)
 config = dict()
-execfile('config', config, config)
+execfile('viewer/config', config, config)
 
 tstream = dict(name='stream',  consumesFrom=[],          classType='twitternet.TwitterStream')
 sstream = dict(name='stream',  consumesFrom=[],          classType='twitternet.SpecificStream')
