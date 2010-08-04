@@ -6,14 +6,16 @@ display = $("<div></div>").appendTo(container);
 onload = function() {
   stomp = new STOMPClient();
   stomp.onopen           = function()      { stomp.subscribe(channel); };
-  stomp.onclose          = function(code)  { alert("onclose: " + code); };
+  stomp.onclose          = function(code)  { container.fadeTo(0, 0); stomp._connect(); };
   stomp.onerror          = function(error) { alert("onerror: " + error); };
   stomp.onerrorframe     = function(frame) { alert("onerrorframe: " + frame.body); };
-  stomp.onconnectedframe = function()      { container.animate({ opacity: 0.3 }, "slow"); };
+  stomp.onconnectedframe = function()      { container.fadeTo("slow", 0.3); };
   stomp.onmessageframe   = function(frame) { viewer.handleMessage(jQuery.parseJSON(frame.body.toString())); };
-  stomp.connect.apply(stomp, stompargs);
+  stomp._connect         = function()      { stomp.connect.apply(stomp, stompargs); };
+  stomp._connect();
 };
 onunload = function() {
+  stomp.onclose = function() {};
   stomp.reset();
 }
 
