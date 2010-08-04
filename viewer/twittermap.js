@@ -1,5 +1,5 @@
 map = $("<div></div>").attr("class", "map").appendTo("body");
-container = $("<div></div>").attr("class", "back").appendTo("body");
+container = $("<div></div>").attr("class", "back").appendTo(map);
 background = $("<img></img>").appendTo(container);
 display = $("<div></div>").appendTo(container);
 
@@ -10,10 +10,7 @@ onload = function() {
   stomp.onerror          = function(error) { alert("onerror: " + error); };
   stomp.onerrorframe     = function(frame) { alert("onerrorframe: " + frame.body); };
   stomp.onconnectedframe = function()      { container.animate({ opacity: 0.3 }, "slow"); };
-  stomp.onmessageframe   = function(frame) {
-    if(frame.body.toString().substring(1, 8) !== "MESSAGE")
-      viewer.handleMessage(jQuery.parseJSON(frame.body.toString()));
-  };
+  stomp.onmessageframe   = function(frame) { viewer.handleMessage(jQuery.parseJSON(frame.body.toString())); };
   stomp.connect.apply(stomp, stompargs);
 };
 onunload = function() {
@@ -53,15 +50,18 @@ function makeCell() {
     }
   };
   cell.doShow = function(x, y, font, text, color, old) {
-    var move = { opacity: 1 }, change = { color: color };
-    if(x < 0.5) { move.left   = 100 * x       + "%"; change.right  = ""; this.theText.css("text-align", "left"); }
-    else        { move.right  = 100 * (1 - x) + "%"; change.left   = ""; this.theText.css("text-align", "right"); }
-    if(y < 0.5) { move.top    = 100 * y       + "%"; change.bottom = ""; this.theText.insertAfter(this.theHeaderText); }
-    else        { move.bottom = 100 * (1 - y) + "%"; change.top    = ""; this.theText.appendTo(this); }
-    this.stop(true).attr("class", "cell new " + this.type).animate(move, old ? "fast" : 0).css(change);
     this.theText.css("fontSize", font + "pt").html(text);
-    this.opacity = opacMax;
-  };
+    this.attr("class", "cell new " + this.type).opacity = opacMax;
+    // We only set left and top properties. The cell stretches right and down from there.
+    // We have a 20% max-width, and we don't want cells to run off the side, so put a
+    // 10% gap on each side, and let x be the center of the cell (so subtract half the
+    // width, converted to a percentage, to get the left side).
+    // We don't have a max-height, so just stick a 20% gap onto the bottom.
+    // It's hackish and magic-number-ful, but it'll do.
+    this.css("color", color).animate({ left   : 80 * x + 10 - 50 * this.width() / $(document).width() + "%",
+                                       top    : 80 * y + "%",
+                                       opacity: 1 }, old ? "fast" : 0);
+  }
   cell.doAge = function() {
     if(this.opacity > 1) {
       if(this.opacity == opacMax)
@@ -71,7 +71,6 @@ function makeCell() {
       this.doHide();
   };
   
-  cell.css({ left: "50%", top: "50%", right: "50%", bottom: "50%" });
   return cell;
 }
 

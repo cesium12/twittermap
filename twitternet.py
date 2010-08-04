@@ -1,7 +1,7 @@
 import logging, socket, sys, re, numpy, pickle
 import TwistedTwitterStream
 from backend.snoc import SocNOC
-from vectornet.utils import ProducingNode, BasicNode
+from vectornet.utils import ProducingNode, BasicNode, ACCEPTED
 from secrets import TWITTER_USER, TWITTER_PASSWORD
 
 rootLogger = logging.getLogger('')
@@ -17,10 +17,22 @@ def log(obj, msg):
         logger.addHandler(handler)
     logger.log(25, '\033[1;31m%s\033[0m: %s' % (obj.node['name'], msg))
 
-def make_send(sender, keys=True):
+class OneToOneNode(BasicNode): # FIIK, but it doesn't work otherwise (desyncs or... something)
+    def load(self, data, senderChannel):
+        ndata, nself = data['frame_number'], self.frame_number
+        if ndata >= nself:
+            self.frame_number = ndata
+            self.compute(data['vector'])
+            if ndata > nself:
+                return self.calculatePriority(data['frame_number'], self.frame_number)
+        return ACCEPTED
+
+def make_send(sender, incr=True, keys=True):
     def _send(data):
-        log(sender, data.keys() if keys else data)
+        log(sender, '%s with frame %d' % (data.keys() if keys else data, sender.frame_number))
         sender.sendMessage(data)
+        if incr:
+            sender.frame_number += 1
     return _send
 
 class TwitterStream(ProducingNode):
@@ -78,9 +90,9 @@ class BlogStream(ProducingNode):
         for feed in self.feeds:
             get(*feed)
 
-class TwitterProcess(BasicNode):
+class TwitterProcess(OneToOneNode):
     def __init__(self, router, nodeDict):
-        BasicNode.__init__(self, router, nodeDict)
+        OneToOneNode.__init__(self, router, nodeDict)
         self.snoc = SocNOC()
         self.snoc.send = make_send(self)
         if '_categories' in self.node:
@@ -88,12 +100,11 @@ class TwitterProcess(BasicNode):
                 self.snoc.categories = dict(self.node['_categories'], affect=pickle.load(affect_file))
     
     def compute(self, data):
-        for tweet in data.values():
-            self.snoc.receive_tweet(tweet)
+        self.snoc.receive_tweet(data)
 
-class BlogProcess(BasicNode):
+class BlogProcess(OneToOneNode):
     def __init__(self, router, nodeDict):
-        BasicNode.__init__(self, router, nodeDict)
+        OneToOneNode.__init__(self, router, nodeDict)
         self.snoc = SocNOC(k=10, spicefreq=0, cnetfreq=0)
         self.snoc.send = make_send(self)
         if '_categories' in self.node:
@@ -101,35 +112,32 @@ class BlogProcess(BasicNode):
                 self.snoc.categories = dict(self.node['_categories'], affect=pickle.load(affect_file))
     
     def compute(self, data):
-        for datum in data.values():
-            self.snoc.process_post(**datum)
+        self.snoc.process_post(**data)
 
-class TwitterSom(BasicNode):
+class TwitterSom(OneToOneNode):
     def __init__(self, router, nodeDict):
-        BasicNode.__init__(self, router, nodeDict)
+        OneToOneNode.__init__(self, router, nodeDict)
         from backend.som import SOMBuilder
         self.som = SOMBuilder(k=20, map_size=tuple(self.node['_somsize']))
-        self.som.send = make_send(self)
+        self.som.send = make_send(self, incr=False)
     
     def compute(self, data):
-        for tweet in data.values():
-            self.som.on_message(tweet)
+        self.som.on_message(data)
 
-class RfbfSom(BasicNode):
+class RfbfSom(OneToOneNode):
     def __init__(self, router, nodeDict):
-        BasicNode.__init__(self, router, nodeDict)
+        OneToOneNode.__init__(self, router, nodeDict)
         from backend.somfish import SOMFish
         self.som = SOMFish(self.node['_fixed'], k=10, map_size=tuple(self.node['_somsize']))
-        self.som.send = make_send(self)
+        self.som.send = make_send(self, incr=False)
     
     def compute(self, data):
-        for tweet in data.values():
-            self.som.on_message(tweet)
+        self.som.on_message(data)
 
-class RfbfVec(BasicNode):
+class RfbfVec(OneToOneNode):
     def __init__(self, router, nodeDict):
-        BasicNode.__init__(self, router, nodeDict)
-        self.send = make_send(self)
+        OneToOneNode.__init__(self, router, nodeDict)
+        self.send = make_send(self, incr=False)
     
     @staticmethod
     def orthogonalize(vec1, vec2):
@@ -143,20 +151,19 @@ class RfbfVec(BasicNode):
         return ret
     
     def compute(self, data):
-        for datum in data.values():
-            text = datum.get('text', None)
-            if text and text[0] != '(':
-                categories, concepts = self.unpack(datum['categories']), self.unpack(datum['concepts'])
-                if not all( vec.any() for vec in categories.values() ):
-                    continue # ignore if any are zero vectors
-                politics = self.orthogonalize(categories['person'], categories['politics'])
-                affect = self.orthogonalize(politics, categories['affect'])
-                pnorm, anorm = numpy.linalg.norm(politics), numpy.linalg.norm(affect)
-                concepts.pop('empty', None) # ignore 'empty' concept if it exists
-                for con, vec in concepts.items():
-                    vnorm = numpy.linalg.norm(vec)
-                    self.send({ 'concept' : con,
-                                'text'    : text,
-                                'size'    : float(numpy.sqrt(numpy.sqrt(vnorm))),
-                                'x'       : float(numpy.vdot(politics, vec) / pnorm / vnorm),
-                                'y'       : float(numpy.vdot(affect, vec) / anorm / vnorm) })
+        text = data.get('text', None)
+        if text and text[0] != '(':
+            categories, concepts = self.unpack(data['categories']), self.unpack(data['concepts'])
+            if not all( vec.any() for vec in categories.values() ):
+                return # ignore if any are zero vectors
+            politics = self.orthogonalize(categories['person'], categories['politics'])
+            affect = self.orthogonalize(politics, categories['affect'])
+            pnorm, anorm = numpy.linalg.norm(politics), numpy.linalg.norm(affect)
+            concepts.pop('empty', None) # ignore 'empty' concept if it exists
+            for con, vec in concepts.items():
+                vnorm = numpy.linalg.norm(vec)
+                self.send({ 'concept' : con,
+                            'text'    : text,
+                            'size'    : float(numpy.sqrt(numpy.sqrt(vnorm))),
+                            'x'       : float(numpy.vdot(politics, vec) / pnorm / vnorm),
+                            'y'       : float(numpy.vdot(affect, vec) / anorm / vnorm) })

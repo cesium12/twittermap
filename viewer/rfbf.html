@@ -10,7 +10,8 @@
     _subj = window.location.search.substring(1) || "rfbf";
     channel = "/topic/" + _subj + "vec";
     _fish = fishes[_subj];
-    tags = _fish._tags;
+    _tags = _fish._tags;
+    _color = _fish._color;
   </script>
   <script src="/.comsat/static/protocols/stomp/stomp.js"></script>
   <link rel="stylesheet" href="twittermap.css"/>
