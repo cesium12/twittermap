@@ -1,4 +1,4 @@
-import logging, socket, sys, re, numpy, pickle
+import logging, socket, sys, numpy, pickle
 import TwistedTwitterStream
 from backend.snoc import SocNOC
 from vectornet.utils import ProducingNode, BasicNode, ACCEPTED
@@ -49,18 +49,21 @@ class TwitterStream(ProducingNode):
 class SpecificStream(ProducingNode):
     def startProducing(self):
         send = make_send(self)
+        topics = []
+        track = []
+        for terms, tag in self.node['_topics']:
+            topics.append((tag, [ x.lower().split() for x in terms ]))
+            track.extend( x.split(None, 1)[0] for x in terms )
         class Consumer(TwistedTwitterStream.TweetReceiver):
-            def __init__(this, terms, tag):
-                this._regex = re.compile('|'.join( x.lower() for x in terms ), re.I)
-                this._tag = tag
-                TwistedTwitterStream.TweetReceiver.__init__(this)
             def connectionFailed(this, why):
                 log(self, 'connection failed (%s)' % why)
             def tweetReceived(this, data):
-                if 'delete' not in data and data['user']: # and self.regex.search(data['text']):
-                    send(dict(tweet=data, word=this._tag))
-        for item in self.node['_topics']:
-            TwistedTwitterStream.filter(TWITTER_USER, TWITTER_PASSWORD, Consumer(*item), track=[ x.split(None, 1)[0] for x in item[0] ])
+                if 'delete' not in data:
+                    text = data['text'].lower()
+                    for tag, kws in topics:
+                        if any( all( w in text for w in kw ) for kw in kws ):
+                            send(dict(tweet=data, word=tag))
+        TwistedTwitterStream.filter(TWITTER_USER, TWITTER_PASSWORD, Consumer(), track=track)
 
 class BlogStream(ProducingNode):
     def __init__(self, router, nodeDict):
