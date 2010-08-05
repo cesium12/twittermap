@@ -170,6 +170,7 @@ opacMax = 5;
 viewer = new Viewer();
 
 function logo(url, title) {
+  url = "static/" + url;
   document.title = title;
   display.css("background-image", "url(" + url + ")");
   background.attr("src", url).load(function() {

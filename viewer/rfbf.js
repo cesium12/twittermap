@@ -28,7 +28,7 @@ function updateCell(info) {
   for(var i = 0; i < _tags.length; i++) {
     var tag = _tags[i][0], spacetag = " " + tag;
     if(text == tag)
-      image = _tags[i][1];
+      image = "static/" + _tags[i][1];
     else if(text.indexOf(spacetag) > -1)
       color = _tags[i][2];
     if(info.text.indexOf(spacetag) > 0)
