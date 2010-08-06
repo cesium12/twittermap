@@ -62,7 +62,7 @@ canvas, .back {
     height: auto;
 }
 .cell.tweet.old {
-    background: transparent url('comment.png') no-repeat top left;
+    background: transparent url(comment.png) no-repeat top left;
     height: 20px;
     width: 24px;
 }

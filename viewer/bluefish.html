@@ -2,27 +2,29 @@
 <html>
 <head>
   <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
-  <script src="processing.js"></script>
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/1/jquery.min.js"></script>
+  <script src="http://github.com/brandonaaron/jquery-mousewheel/raw/master/jquery.mousewheel.js"></script>
   <script src="/.comsat/static/Orbited.js"></script>
   <script>
     TCPSocket = Orbited.TCPSocket;
-    channel = "/topic/process";
+    channel = "/topic/" + (window.location.search.substring(1) || "rfbfprocess");
+    document.title = "blue fish viewer";
   </script>
   <script src="/.comsat/static/protocols/stomp/stomp.js"></script>
+  <link rel="stylesheet" href="static/twittermap.css"/>
 </head>
 <body>
-  <canvas width="800" height="700" id="canvas"></canvas>
-  <div id="output"></div>
   <script src="viewer.js"></script>
   <script>
     viewer.axisColors = function(vec) {
       var colorvec = new Array(3);
-      for(var i=0; i<2; i++)
-        colorvec[i] = 160 + 200*(vec[i+2] + vec[i+4] + vec[i+6]);
+      for(var i = 0; i < 2; i++)
+        colorvec[i] = 160 + 200 * (vec[i+2] + vec[i+4] + vec[i+6]);
       colorvec[2] = 255;
       colorvec[0] *= 0.8;
       return colorvec;
     };
+    viewer.draw();
   </script>
 </body>
 </html>
